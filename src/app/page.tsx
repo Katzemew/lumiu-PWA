@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { LumiuWordmark } from "@/components/LumiuWordmark";
 
 export default function Home() {
   const [isLoggedin, setIsLoggedin] = useState(() => {
@@ -53,17 +54,17 @@ export default function Home() {
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    background: '#a855f7',
+    background: 'linear-gradient(135deg, #a855f7, #6366f1)',
     color: 'white',
     padding: '18px 56px',
     borderRadius: '24px',
     fontSize: '16px',
     fontWeight: '800',
     letterSpacing: '0.05em',
-    boxShadow: '0 12px 30px -10px rgba(168, 85, 247, 0.6)',
-    transition: 'all 0.3s ease',
+    boxShadow: '0 12px 30px -10px rgba(168, 85, 247, 0.8), inset 0 1px 0 rgba(255,255,255,0.2)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
     textDecoration: 'none',
-    border: 'none'
+    border: '1px solid rgba(168,85,247,0.3)',
   };
 
   const navLinkStyle = {
@@ -95,9 +96,9 @@ export default function Home() {
       {/* 🧭 Top Navigation */}
       <div className="relative z-50 w-full flex items-center justify-center px-16 py-10">
         <div className="w-full max-w-[1600px] flex items-center justify-between">
-          <div className="text-4xl font-black tracking-tighter text-white select-none">
-            Lumiu<span className="text-[#a855f7]">.</span>
-          </div>
+          <Link href="/">
+            <LumiuWordmark size="md" />
+          </Link>
 
           <div className="flex items-center gap-16">
             <Link href="/" style={navLinkStyle} className="hover:text-white">Home</Link>
@@ -133,10 +134,10 @@ export default function Home() {
       {/* 🚀 Main Hero Section */}
       <main className="relative z-20 flex flex-col items-center justify-center p-8 min-h-screen">
         <motion.div
-          initial={{ opacity: 0, scale: 0.98 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 1 }}
-          className="text-center"
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 1, ease: "easeOut" }}
+          className="text-center animate-orb-float relative"
           style={{
             background: 'rgba(255, 255, 255, 0.03)',
             backdropFilter: 'blur(50px) saturate(160%)',
@@ -146,9 +147,12 @@ export default function Home() {
             padding: '100px 40px',
             maxWidth: '1200px',
             width: '100%',
-            boxShadow: '0 40px 120px -20px rgba(0, 0, 0, 0.5)'
+            boxShadow: '0 40px 120px -20px rgba(0, 0, 0, 0.5), 0 0 40px rgba(168, 85, 247, 0.15) inset'
           }}
         >
+          <div className="absolute -top-[100px] -left-[100px] w-64 h-64 bg-purple-500/20 rounded-full blur-[80px] pointer-events-none" />
+          <div className="absolute -bottom-[100px] -right-[100px] w-64 h-64 bg-teal-500/20 rounded-full blur-[80px] pointer-events-none" />
+
           <div className="space-y-12">
             <h1
               className="font-black leading-[1.1] tracking-tight text-white m-0"
@@ -191,7 +195,7 @@ export default function Home() {
         .iridescent-purple::after {
           content: '';
           position: absolute;
-          bottom: 10px;
+          bottom: -4px;
           left: 0;
           width: 100%;
           height: 4px;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { LumiuWordmark } from "@/components/LumiuWordmark";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -137,7 +138,7 @@ export default function LoginPage() {
                 {/* Right Side: Form */}
                 <div style={rightSideStyle}>
                     <div style={{ maxWidth: '440px', width: '100%', margin: '0 auto' }}>
-                        <h1 style={titleStyle}>Welcome to Lumiu!</h1>
+                        <LumiuWordmark size="lg" className="mb-6" />
                         <p style={subtitleStyle}>Please Log in to get started</p>
 
                         <form onSubmit={handleSubmit}>

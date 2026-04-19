@@ -1,4 +1,12 @@
-# PWA-app
+# Lumiu (PWA-app)
+
+A specialized learning tool designed for neurodiverse individuals (ADHD and Dyslexia).
+
+## 📊 Dataset Integration
+Integrated the [ADHD Dataset](https://www.kaggle.com/datasets/a7md19/adhd-dataset-4-classes-u2) from Kaggle for behavioral insights.
+- **Location**: `public/dataset/adhd_data.csv`
+- **Visualization**: Accessible via `/dashboard/insights`
+- **API**: Serves processed JSON via `/api/dataset`
 
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 

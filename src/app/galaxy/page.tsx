@@ -1,250 +1,227 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { motion } from "framer-motion";
+import { useState, useEffect } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Stars, Html, Line, Sphere } from "@react-three/drei";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
+import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { ArrowLeft, ZoomIn, ZoomOut, Compass } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 
 // Mock Data based on the reference Star Map provided by the user
-const constellations = [
+const constellationsRaw = [
     {
-        id: "aquila",
-        name: "Chapter 1",
-        description: "Mastered fundamentals.",
-        x: 800, y: 700,
-        status: "completed",
+        id: "aquila", name: "01 Aquila", description: "Mastered fundamentals.", x: -10, y: 5, z: -5, status: "completed",
         stars: [
-            { id: "aq1", dx: -50, dy: 100, name: "Altair (Alpha Aquilae)", completed: true },
-            { id: "aq2", dx: 0, dy: -50, name: "Tarazed", completed: true },
-            { id: "aq3", dx: 40, dy: 60, name: "Alshain", completed: true },
-            { id: "aq4", dx: 80, dy: 120, name: "Theta Aquilae", completed: true },
-            { id: "aq5", dx: 140, dy: 180, name: "Eta Aquilae", completed: true },
+            { id: "aq1", dx: -0.5, dy: 1, dz: 0, name: "Altair (Alpha Aquilae)", completed: true },
+            { id: "aq2", dx: 0, dy: -0.5, dz: 1, name: "Tarazed", completed: true },
+            { id: "aq3", dx: 0.4, dy: 0.6, dz: -0.5, name: "Alshain", completed: true },
+            { id: "aq4", dx: 0.8, dy: 1.2, dz: 0, name: "Theta Aquilae", completed: true },
+            { id: "aq5", dx: 1.4, dy: 1.8, dz: 0.5, name: "Eta Aquilae", completed: true },
         ],
         connections: [[0, 1], [1, 2], [0, 2], [2, 3], [3, 4]]
     },
     {
-        id: "scutum",
-        name: "Chapter 2",
-        description: "The Shield.",
-        x: 1200, y: 900,
-        status: "completed",
+        id: "scutum", name: "02 Scutum", description: "The Shield.", x: -6, y: 3, z: 2, status: "completed",
         stars: [
-            { id: "scu1", dx: 0, dy: -40, name: "Alpha Scuti", completed: true },
-            { id: "scu2", dx: -30, dy: 20, name: "Beta Scuti", completed: true },
-            { id: "scu3", dx: 40, dy: 30, name: "Delta Scuti", completed: true },
-            { id: "scu4", dx: 10, dy: 80, name: "Gamma Scuti", completed: true },
+            { id: "scu1", dx: 0, dy: -0.4, dz: 0, name: "Alpha Scuti", completed: true },
+            { id: "scu2", dx: -0.3, dy: 0.2, dz: 0.5, name: "Beta Scuti", completed: true },
+            { id: "scu3", dx: 0.4, dy: 0.3, dz: -0.5, name: "Delta Scuti", completed: true },
+            { id: "scu4", dx: 0.1, dy: 0.8, dz: 0, name: "Gamma Scuti", completed: true },
         ],
         connections: [[0, 1], [0, 2], [1, 3], [2, 3]]
     },
     {
-        id: "libra",
-        name: "Chapter 3",
-        description: "The Scales.",
-        x: 1900, y: 500,
-        status: "completed",
+        id: "libra", name: "03 Libra", description: "The Scales.", x: 1, y: 7, z: -4, status: "completed",
         stars: [
-            { id: "lb1", dx: 0, dy: -50, name: "Zubeneschamali", completed: true },
-            { id: "lb2", dx: -60, dy: 40, name: "Zubenelgenubi", completed: true },
-            { id: "lb3", dx: 80, dy: 60, name: "Brachium", completed: true },
-            { id: "lb4", dx: -60, dy: 160, name: "Sigma Librae", completed: true },
+            { id: "lb1", dx: 0, dy: -0.5, dz: 0, name: "Zubeneschamali", completed: true },
+            { id: "lb2", dx: -0.6, dy: 0.4, dz: 1, name: "Zubenelgenubi", completed: true },
+            { id: "lb3", dx: 0.8, dy: 0.6, dz: -0.5, name: "Brachium", completed: true },
+            { id: "lb4", dx: -0.6, dy: 1.6, dz: 0, name: "Sigma Librae", completed: true },
         ],
         connections: [[0, 1], [0, 2], [1, 2], [1, 3]]
     },
     {
-        id: "ophiuchus",
-        name: "Chapter 4",
-        description: "The Serpent Bearer.",
-        x: 2300, y: 1100,
-        status: "current",
+        id: "ophiuchus", name: "04 Ophiuchus", description: "The Serpent Bearer.", x: 5, y: 1, z: 5, status: "current",
         stars: [
-            { id: "op1", dx: 0, dy: -100, name: "Rasalhague", completed: true },
-            { id: "op2", dx: -80, dy: 0, name: "Cebalrai", completed: true },
-            { id: "op3", dx: 80, dy: 20, name: "Yed Prior", completed: false },
-            { id: "op4", dx: -120, dy: 120, name: "Sabik", completed: false },
-            { id: "op5", dx: 120, dy: 140, name: "Zeta Ophiuchi", completed: false },
-            { id: "op6", dx: 0, dy: 180, name: "Eta Ophiuchi", completed: false },
+            { id: "op1", dx: 0, dy: -1.0, dz: 0, name: "Rasalhague", completed: true },
+            { id: "op2", dx: -0.8, dy: 0, dz: 0.5, name: "Cebalrai", completed: true },
+            { id: "op3", dx: 0.8, dy: 0.2, dz: -0.5, name: "Yed Prior", completed: false },
+            { id: "op4", dx: -1.2, dy: 1.2, dz: 0, name: "Sabik", completed: false },
+            { id: "op5", dx: 1.2, dy: 1.4, dz: 1, name: "Zeta Ophiuchi", completed: false },
+            { id: "op6", dx: 0, dy: 1.8, dz: -0.5, name: "Eta Ophiuchi", completed: false },
         ],
         connections: [[0, 1], [0, 2], [1, 3], [2, 4], [3, 5], [4, 5]]
     },
     {
-        id: "sagittarius",
-        name: "Chapter 5",
-        description: "The Archer.",
-        x: 1500, y: 1500,
-        status: "current",
+        id: "sagittarius", name: "05 Sagittarius", description: "The Archer.", x: -3, y: -3, z: -8, status: "current",
         stars: [
-            { id: "sg1", dx: -60, dy: 0, name: "Kaus Media", completed: true },
-            { id: "sg2", dx: -20, dy: -50, name: "Kaus Borealis", completed: true },
-            { id: "sg3", dx: 40, dy: -20, name: "Nunki", completed: false },
-            { id: "sg4", dx: 80, dy: 80, name: "Ascella", completed: false },
-            { id: "sg5", dx: 0, dy: 100, name: "Kaus Australis", completed: false },
+            { id: "sg1", dx: -0.6, dy: 0, dz: 0, name: "Kaus Media", completed: true },
+            { id: "sg2", dx: -0.2, dy: -0.5, dz: 0.5, name: "Kaus Borealis", completed: true },
+            { id: "sg3", dx: 0.4, dy: -0.2, dz: -0.5, name: "Nunki", completed: false },
+            { id: "sg4", dx: 0.8, dy: 0.8, dz: 0, name: "Ascella", completed: false },
+            { id: "sg5", dx: 0, dy: 1.0, dz: 1, name: "Kaus Australis", completed: false },
         ],
         connections: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 0], [0, 2]]
     },
     {
-        id: "serpens",
-        name: "Chapter 6",
-        description: "The Serpent.",
-        x: 2800, y: 600,
-        status: "locked",
+        id: "serpens", name: "06 Serpens", description: "The Serpent.", x: 10, y: 6, z: 2, status: "locked",
         stars: [
-            { id: "sr1", dx: 0, dy: 0, name: "Unukalhai", completed: false },
-            { id: "sr2", dx: -40, dy: 80, name: "Alya", completed: false },
-            { id: "sr3", dx: 40, dy: -60, name: "Mu Serpentis", completed: false },
+            { id: "sr1", dx: 0, dy: 0, dz: 0, name: "Unukalhai", completed: false },
+            { id: "sr2", dx: -0.4, dy: 0.8, dz: 0.5, name: "Alya", completed: false },
+            { id: "sr3", dx: 0.4, dy: -0.6, dz: -0.5, name: "Mu Serpentis", completed: false },
         ],
         connections: [[0, 1], [0, 2]]
     },
     {
-        id: "scorpius",
-        name: "Chapter 7",
-        description: "The Scorpion.",
-        x: 2200, y: 1900,
-        status: "locked",
+        id: "scorpius", name: "07 Scorpius", description: "The Scorpion.", x: 4, y: -7, z: -2, status: "locked",
         stars: [
-            { id: "sc1", dx: 0, dy: -80, name: "Antares", completed: false },
-            { id: "sc2", dx: -40, dy: -120, name: "Graffias", completed: false },
-            { id: "sc3", dx: -10, dy: -30, name: "Al Niyat", completed: false },
-            { id: "sc4", dx: 40, dy: 20, name: "Wei", completed: false },
-            { id: "sc5", dx: -10, dy: 80, name: "Sargas", completed: false },
-            { id: "sc6", dx: -80, dy: 100, name: "Shaula", completed: false },
+            { id: "sc1", dx: 0, dy: -0.8, dz: 0, name: "Antares", completed: false },
+            { id: "sc2", dx: -0.4, dy: -1.2, dz: 0.5, name: "Graffias", completed: false },
+            { id: "sc3", dx: -0.1, dy: -0.3, dz: -0.5, name: "Al Niyat", completed: false },
+            { id: "sc4", dx: 0.4, dy: 0.2, dz: 0, name: "Wei", completed: false },
+            { id: "sc5", dx: -0.1, dy: 0.8, dz: 0.5, name: "Sargas", completed: false },
+            { id: "sc6", dx: -0.8, dy: 1.0, dz: -0.5, name: "Shaula", completed: false },
         ],
         connections: [[0, 2], [2, 3], [3, 4], [4, 5], [0, 1]]
     },
     {
-        id: "capricorn",
-        name: "Chapter 8",
-        description: "The Sea-Goat.",
-        x: 900, y: 1800,
-        status: "locked",
+        id: "capricorn", name: "08 Capricorn", description: "The Sea-Goat.", x: -9, y: -6, z: 6, status: "locked",
         stars: [
-            { id: "cp1", dx: -50, dy: 0, name: "Algedi", completed: false },
-            { id: "cp2", dx: 80, dy: -40, name: "Dabih", completed: false },
-            { id: "cp3", dx: 60, dy: 60, name: "Nashira", completed: false },
-            { id: "cp4", dx: -80, dy: 80, name: "Deneb Algedi", completed: false },
+            { id: "cp1", dx: -0.5, dy: 0, dz: 0, name: "Algedi", completed: false },
+            { id: "cp2", dx: 0.8, dy: -0.4, dz: 0.5, name: "Dabih", completed: false },
+            { id: "cp3", dx: 0.6, dy: 0.6, dz: -0.5, name: "Nashira", completed: false },
+            { id: "cp4", dx: -0.8, dy: 0.8, dz: 0, name: "Deneb Algedi", completed: false },
         ],
         connections: [[0, 1], [1, 2], [2, 3], [3, 0]]
     },
     {
-        id: "lupus",
-        name: "Chapter 9",
-        description: "The Wolf.",
-        x: 2900, y: 1500,
-        status: "locked",
+        id: "lupus", name: "09 Lupus", description: "The Wolf.", x: 11, y: -3, z: -6, status: "locked",
         stars: [
-            { id: "lp1", dx: 0, dy: 0, name: "Alpha Lupi", completed: false },
-            { id: "lp2", dx: -40, dy: 40, name: "Beta Lupi", completed: false },
-            { id: "lp3", dx: 40, dy: 60, name: "Gamma Lupi", completed: false },
+            { id: "lp1", dx: 0, dy: 0, dz: 0, name: "Alpha Lupi", completed: false },
+            { id: "lp2", dx: -0.4, dy: 0.4, dz: 0.5, name: "Beta Lupi", completed: false },
+            { id: "lp3", dx: 0.4, dy: 0.6, dz: -0.5, name: "Gamma Lupi", completed: false },
         ],
         connections: [[0, 1], [0, 2]]
     }
 ];
 
-export default function GalaxyTrackerPage() {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [scale, setScale] = useState(1);
+function StarMap() {
     const [hoveredConstellation, setHoveredConstellation] = useState<string | null>(null);
-    const [hoveredStar, setHoveredStar] = useState<string | null>(null);
-    const [backgroundStars, setBackgroundStars] = useState<{ x: number, y: number, o: number, s: number, c: string }[]>([]);
-    const [nebulae, setNebulae] = useState<{ x: number, y: number, color: string, scale: number }[]>([]);
+
+    return (
+        <group>
+            {constellationsRaw.map((constellation) => (
+                <group 
+                    key={constellation.id} 
+                    position={[constellation.x * 4, constellation.y * 4, constellation.z * 4]}
+                    scale={[2.5, 2.5, 2.5]}
+                    onPointerEnter={(e) => { e.stopPropagation(); setHoveredConstellation(constellation.id); }}
+                    onPointerOut={() => setHoveredConstellation(null)}
+                >
+                    {/* Render Connections */}
+                    {constellation.connections.map(([a, b], idx) => {
+                        const starA = constellation.stars[a];
+                        const starB = constellation.stars[b];
+                        const isLocked = constellation.status === "locked";
+                        const isCompleted = starA.completed && starB.completed;
+                        const color = isLocked ? "rgba(255, 255, 255, 0.1)" : (isCompleted ? "#fb923c" : "rgba(251, 146, 60, 0.4)");
+                        const lineWidth = isCompleted ? 2 : 1;
+                        
+                        return (
+                            <Line
+                                key={`line-${idx}`}
+                                points={[
+                                    [starA.dx, starA.dy, starA.dz],
+                                    [starB.dx, starB.dy, starB.dz]
+                                ]}
+                                color={color}
+                                lineWidth={lineWidth}
+                                transparent
+                                opacity={isLocked ? 0.2 : 0.8}
+                            />
+                        );
+                    })}
+
+                    {/* Render Stars */}
+                    {constellation.stars.map((star) => {
+                        const isLocked = constellation.status === "locked";
+                        const isCompleted = star.completed;
+                        
+                        // Deterministic pseudo-random size for variety
+                        const rand = (star.name.charCodeAt(0) + star.name.charCodeAt(star.name.length - 1)) % 10;
+                        const starSize = 0.07 + (rand * 0.008);
+                        
+                        const color = isLocked ? "#444444" : (isCompleted ? "#ffffff" : "#aaaaaa");
+                        // Add slight blue/orange tint variance for real stellar classes
+                        const glowColor = rand % 3 === 0 ? "#bae6fd" : (rand % 3 === 1 ? "#fed7aa" : "#ffffff"); 
+                        const glow = isCompleted ? glowColor : "#000000";
+                        const glowIntensity = isCompleted ? 2.5 + (rand * 0.4) : 0;
+                        
+                        const isHovered = hoveredConstellation === constellation.id;
+
+                        return (
+                            <group key={star.id} position={[star.dx, star.dy, star.dz]}>
+                                {/* Inner sharp core */}
+                                <Sphere args={[starSize * 0.5, 16, 16]}>
+                                    <meshBasicMaterial color={isLocked ? "#222222" : "#ffffff"} />
+                                </Sphere>
+                                {/* Glowing outer shell picked up by Bloom */}
+                                <Sphere args={[starSize, 16, 16]}>
+                                    <meshStandardMaterial color={color} emissive={glow} emissiveIntensity={glowIntensity} transparent opacity={0.6} />
+                                </Sphere>
+                                {/* Invisible interactive area around the star */}
+                                <Sphere args={[0.3, 8, 8]} visible={false} />
+                                
+                                {/* Label shown on hover */}
+                                {isHovered && !isLocked && (
+                                    <Html center position={[0, -0.2, 0]} style={{ pointerEvents: 'none' }}>
+                                        <div style={{ color: "white", fontSize: "10px", whiteSpace: "nowrap", textShadow: "0 0 4px black", pointerEvents: 'none' }}>
+                                            {star.name}
+                                        </div>
+                                    </Html>
+                                )}
+                            </group>
+                        );
+                    })}
+
+                    {/* Constellation Name Label */}
+                    <Html center position={[0, -2, 0]} style={{ pointerEvents: 'none' }}>
+                        <div style={{
+                            color: hoveredConstellation === constellation.id ? "rgba(255, 255, 255, 0.9)" : "rgba(255, 255, 255, 0.4)",
+                            fontSize: "10px", fontWeight: "500", whiteSpace: "nowrap",
+                            textTransform: "uppercase", letterSpacing: "4px",
+                            transition: "all 0.3s ease-in-out",
+                            textShadow: "0px 1px 3px rgba(0,0,0,1)"
+                        }}>
+                            {constellation.name}
+                        </div>
+                    </Html>
+                </group>
+            ))}
+        </group>
+    );
+}
+
+export default function GalaxyTrackerPage() {
+    const [showHint, setShowHint] = useState(true);
 
     useEffect(() => {
-        const colors = ["#ffffff", "#e2e8f0", "#a5b4fc", "#c7d2fe", "#fef08a", "#fff0f5"];
-        const stars = Array.from({ length: 8000 }).map(() => {
-            const size = Math.pow(Math.random(), 4) * 4 + 0.5; // nice soft glowing stars, no crosses
-            return {
-                x: Math.random() * 8000,
-                y: Math.random() * 8000,
-                o: Math.random() * 0.8 + 0.2,
-                s: size,
-                c: colors[Math.floor(Math.random() * colors.length)]
-            };
-        });
-        setBackgroundStars(stars);
-
-        // Generate glowing nebulae clouds (blue and brown/gold like the reference image)
-        const nebulaColors = [
-            "rgba(30, 58, 138, 0.15)", // dark blue
-            "rgba(29, 78, 216, 0.1)",  // blue
-            "rgba(146, 64, 14, 0.15)", // dark brown/gold
-            "rgba(180, 83, 9, 0.12)",   // amber/brown
-            "rgba(125, 211, 252, 0.08)" // light blue
-        ];
-        const nebs = Array.from({ length: 45 }).map(() => ({
-            x: Math.random() * 8000,
-            y: Math.random() * 8000,
-            color: nebulaColors[Math.floor(Math.random() * nebulaColors.length)],
-            scale: Math.random() * 2500 + 1000
-        }));
-        setNebulae(nebs);
-
+        const timer = setTimeout(() => setShowHint(false), 7000);
+        return () => clearTimeout(timer);
     }, []);
-
-    const handleZoomIn = () => setScale(s => Math.min(s + 0.2, 2));
-    const handleZoomOut = () => setScale(s => Math.max(s - 0.2, 0.4));
-    const handleResetZoom = () => setScale(1);
-
-    const getStarStyle = (constellationStatus: string, starCompleted: boolean) => {
-        // Crisp white stars with white glow, matching new reference
-        if (constellationStatus === "locked") return {
-            backgroundColor: "#ffffff",
-            border: "none",
-            opacity: 0.15,
-            boxShadow: "0 0 2px rgba(255, 255, 255, 0.2)"
-        };
-        if (starCompleted) return {
-            backgroundColor: "#ffffff",
-            border: "none",
-            boxShadow: "0 0 8px 2px rgba(255, 255, 255, 0.9)" // white bloom
-        };
-        return {
-            backgroundColor: "#ffffff",
-            border: "none",
-            opacity: 0.5,
-            boxShadow: "0 0 4px 1px rgba(255, 255, 255, 0.3)"
-        };
-    };
-
-    const getLineProps = (constellationStatus: string, aComp: boolean, bComp: boolean) => {
-        if (constellationStatus === "locked") {
-            return { stroke: "rgba(255, 255, 255, 0.05)", strokeWidth: "1", filter: "none" };
-        }
-        if (aComp && bComp) {
-            // Thick, glowing orange line for completed connections
-            return {
-                stroke: "#fb923c", // bright golden-orange
-                strokeWidth: "3",
-                filter: "drop-shadow(0 0 4px rgba(251, 146, 60, 0.8))"
-            };
-        }
-        // Thin, faint orange line for incomplete connections
-        return {
-            stroke: "rgba(251, 146, 60, 0.4)",
-            strokeWidth: "1",
-            filter: "none"
-        };
-    };
 
     return (
         <div style={{
             position: "fixed",
             top: 0, left: 0, right: 0, bottom: 0,
             width: "100%", height: "100%",
-            backgroundColor: "#000000", // pure black background
-            overflow: "hidden", // return to hidden for drag
+            backgroundColor: "#000000",
+            overflow: "hidden",
             fontFamily: "var(--font-inter), sans-serif",
             userSelect: "none",
-            zIndex: 100 // ensure it sits over regular layout entirely
+            zIndex: 100
         }}>
-
-            {/* Background Ambience */}
-            <div style={{
-                position: "absolute",
-                top: 0, left: 0, right: 0, bottom: 0,
-                pointerEvents: "none",
-                background: "#000000", // Pure black
-                zIndex: 0
-            }} />
-
             {/* Top Navigation Overlay */}
             <div style={{
                 position: "absolute",
@@ -260,235 +237,68 @@ export default function GalaxyTrackerPage() {
                         href="/"
                         style={{
                             display: "flex", alignItems: "center", gap: "8px",
-                            padding: "12px 20px",
-                            backgroundColor: "rgba(255,255,255,0.05)",
-                            border: "1px solid rgba(255,255,255,0.1)",
+                            padding: "8px 16px",
+                            backgroundColor: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.08)",
                             backdropFilter: "blur(12px)",
                             borderRadius: "9999px",
-                            color: "white",
-                            fontWeight: "bold",
+                            color: "rgba(255, 255, 255, 0.8)",
+                            fontSize: "12px",
+                            fontWeight: "500",
+                            letterSpacing: "1px",
+                            textTransform: "uppercase",
                             textDecoration: "none",
                             transition: "all 0.3s",
-                            boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)"
+                            boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
                         }}
                     >
-                        <ArrowLeft size={18} />
+                        <ArrowLeft size={14} />
                         Back to Base
                     </Link>
                 </div>
-            </div>
 
-            {/* Zoom Controls */}
-            <div style={{
-                position: "absolute",
-                bottom: "40px", right: "40px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "12px",
-                zIndex: 50,
-                pointerEvents: "auto"
-            }}>
-                <button onClick={handleZoomIn} style={zoomBtnStyle}>
-                    <ZoomIn size={20} />
-                </button>
-                <button onClick={handleResetZoom} style={{ ...zoomBtnStyle, color: "#c084fc", fontWeight: "900", fontSize: "14px" }}>
-                    1x
-                </button>
-                <button onClick={handleZoomOut} style={zoomBtnStyle}>
-                    <ZoomOut size={20} />
-                </button>
-            </div>
-
-
-
-            {/* Draggable Galaxy Canvas */}
-            <motion.div
-                ref={containerRef}
-                style={{
-                    position: "absolute",
-                    zIndex: 10,
-                    width: "8000px", height: "8000px",
-                    cursor: "grab",
-                    transformOrigin: "center"
-                }}
-                drag
-                dragConstraints={{ left: -6000, right: 0, top: -6000, bottom: 0 }}
-                dragElastic={0.2}
-                dragTransition={{ bounceStiffness: 100, bounceDamping: 10 }}
-                initial={{ x: -400, y: -300 }}
-                animate={{ scale }}
-                transition={{ type: "spring", stiffness: 200, damping: 20 }}
-            >
-
-                {/* Render Nebulae Clouds */}
-                {nebulae.map((n, i) => (
-                    <div key={`neb-${i}`} style={{
-                        position: "absolute",
-                        left: n.x, top: n.y,
-                        width: n.scale + "px", height: n.scale + "px",
-                        background: `radial-gradient(circle, ${n.color} 0%, transparent 70%)`,
-                        borderRadius: "50%",
-                        pointerEvents: "none",
-                        transform: "translate(-50%, -50%)",
-                        filter: "blur(80px)",
-                        opacity: 0.9
-                    }} />
-                ))}
-
-                {/* Render Dense Background Stars inside draggable area so they move with the universe */}
-                {backgroundStars.map((s, i) => (
-                    <div key={`bgstar-${i}`} style={{
-                        position: "absolute",
-                        left: s.x, top: s.y,
-                        width: Math.max(s.s, 1) + "px", height: Math.max(s.s, 1) + "px",
-                        backgroundColor: s.c,
-                        opacity: s.o,
-                        borderRadius: "50%",
-                        pointerEvents: "none",
-                        boxShadow: s.s > 1.5 ? `0 0 ${s.s * 2}px ${s.c}` : "none"
-                    }} />
-                ))}
-
-                {/* Render Constellations */}
-                {constellations.map((constellation) => (
-                    <div
-                        key={constellation.id}
-                        style={{
-                            position: "absolute",
-                            left: constellation.x, top: constellation.y
-                        }}
-                        onMouseEnter={() => setHoveredConstellation(constellation.id)}
-                        onMouseLeave={() => setHoveredConstellation(null)}
-                    >
-
-                        {/* Draw SVG connections between stars */}
-                        <svg style={{ position: "absolute", overflow: "visible", pointerEvents: "none", left: 0, top: 0 }}>
-                            {constellation.connections.map(([a, b], idx) => {
-                                const starA = constellation.stars[a];
-                                const starB = constellation.stars[b];
-                                const lineProps = getLineProps(constellation.status, starA.completed, starB.completed);
-                                return (
-                                    <line
-                                        key={idx}
-                                        x1={starA.dx} y1={starA.dy}
-                                        x2={starB.dx} y2={starB.dy}
-                                        stroke={lineProps.stroke}
-                                        strokeWidth={lineProps.strokeWidth}
-                                        strokeLinecap="round"
-                                        style={{ transition: "all 0.5s", filter: lineProps.filter }}
-                                    />
-                                );
-                            })}
-                        </svg>
-
-                        {/* Render Individual Stars */}
-                        {constellation.stars.map((star, idx) => {
-                            const starStyles = getStarStyle(constellation.status, star.completed);
-                            const isHovered = hoveredStar === star.id || hoveredConstellation === constellation.id;
-                            const showTooltip = hoveredStar === star.id || hoveredConstellation === constellation.id;
-
-                            return (
-                                <div
-                                    key={star.id}
-                                    style={{
-                                        position: "absolute",
-                                        left: star.dx, top: star.dy,
-                                        transform: "translate(-50%, -50%)",
-                                        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                                        zIndex: isHovered ? 50 : 10
-                                    }}
-                                >
-                                    {/* Invisible large hit area for easier hovering on tiny stars */}
-                                    <div
-                                        style={{
-                                            position: "absolute",
-                                            width: "40px", height: "40px",
-                                            borderRadius: "50%",
-                                            cursor: constellation.status !== 'locked' ? 'pointer' : 'default',
-                                            pointerEvents: "auto",
-                                        }}
-                                        onMouseEnter={() => setHoveredStar(star.id)}
-                                        onMouseLeave={() => setHoveredStar(null)}
-                                    />
-
-                                    {/* The actual Star Dot */}
-                                    <div
-                                        style={{
-                                            width: "6px", height: "6px",
-                                            borderRadius: "50%",
-                                            pointerEvents: "none",
-                                            transition: "all 0.3s",
-                                            ...starStyles,
-                                            transform: (isHovered && constellation.status !== 'locked') ? "scale(1.5)" : "scale(1)"
-                                        }}
-                                    />
-
-                                    {/* Permanent Faint Label */}
-                                    {(constellation.status !== 'locked') && (
-                                        <div style={{
-                                            position: "absolute",
-                                            top: "20px",
-                                            whiteSpace: "nowrap",
-                                            fontSize: "11px",
-                                            fontWeight: isHovered ? "600" : "400",
-                                            color: "#ffffff",
-                                            opacity: isHovered ? 1 : 0, // completely invisible until hovered
-                                            pointerEvents: "none",
-                                            transition: "all 0.3s",
-                                            textShadow: isHovered ? "0 0 10px rgba(255,255,255,0.8)" : "none",
-                                            letterSpacing: "0.05em"
-                                        }}>
-                                            Concept {idx + 1}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-
-                        {/* Realistic Constellation Base Label */}
-                        <div
+                {/* Animated Upper-Right Hint */}
+                <AnimatePresence>
+                    {showHint && (
+                        <motion.div
+                            initial={{ opacity: 0, x: 20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 20, transition: { duration: 1 } }}
+                            transition={{ duration: 0.8, ease: "easeOut" }}
                             style={{
-                                position: "absolute",
-                                left: "50%",
-                                top: "140px",
-                                transform: `translateX(-50%)`,
+                                color: "rgba(255, 255, 255, 0.5)",
+                                fontSize: "11px",
+                                fontWeight: "500",
+                                letterSpacing: "1px",
                                 pointerEvents: "none",
-                                zIndex: 0,
-                                textAlign: "center",
-                                width: "400px",
-                                opacity: 0.8
+                                textAlign: "right",
+                                marginTop: "8px"
                             }}
                         >
-                            <h2 style={{
-                                fontSize: "28px",
-                                fontWeight: "800",
-                                color: "rgba(255, 255, 255, 0.9)",
-                                margin: 0,
-                                letterSpacing: "0.15em",
-                                textTransform: "uppercase",
-                                textShadow: "0 2px 10px rgba(0,0,0,0.8)"
-                            }}>
-                                {constellation.name}
-                            </h2>
-                        </div>
+                            Drag to rotate. <br/> Scroll to zoom.
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
 
-                    </div>
-                ))}
-            </motion.div>
+            {/* 3D Canvas */}
+            <Canvas camera={{ position: [0, 0, 20], fov: 50 }}>
+                {/* Ambient logic and lights */}
+                <ambientLight intensity={0.2} />
+                <pointLight position={[10, 10, 10]} intensity={0.5} />
+                
+                {/* Cinematic Post-Processing Bloom */}
+                <EffectComposer>
+                    <Bloom luminanceThreshold={1.2} mipmapBlur intensity={1.8} />
+                </EffectComposer>
+
+                {/* More realistic immersive background stars */}
+                <Stars radius={80} depth={50} count={8000} factor={4} saturation={0.8} fade speed={0.5} />
+                
+                <OrbitControls enableDamping dampingFactor={0.05} maxDistance={50} minDistance={5} />
+                
+                <StarMap />
+            </Canvas>
         </div>
     );
 }
-
-const zoomBtnStyle: React.CSSProperties = {
-    width: "48px", height: "48px",
-    backgroundColor: "rgba(255,255,255,0.1)",
-    border: "1px solid rgba(255,255,255,0.2)",
-    backdropFilter: "blur(12px)",
-    borderRadius: "50%",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    color: "white",
-    transition: "all 0.3s",
-    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-    cursor: "pointer",
-    outline: "none"
-};

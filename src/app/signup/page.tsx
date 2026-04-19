@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { motion } from "framer-motion";
+import { LumiuWordmark } from "@/components/LumiuWordmark";
 
 export default function SignupPage() {
     const router = useRouter();
@@ -139,7 +140,7 @@ export default function SignupPage() {
                 {/* Form */}
                 <div style={rightSideStyle}>
                     <div style={{ maxWidth: '440px', width: '100%', margin: '0 auto' }}>
-                        <h1 style={titleStyle}>Create Account</h1>
+                        <LumiuWordmark size="lg" className="mb-6" />
                         <p style={subtitleStyle}>Start your learning journey today</p>
 
                         <form onSubmit={handleSubmit}>
