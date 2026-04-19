@@ -4,8 +4,8 @@ import path from "path";
 import Papa from "papaparse";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyDdKqsvMKkXWcR_D0zy-uOCM9TBlpegqjw");
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "sk-or-v1-4c4...df6";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY");
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "YOUR_OPENROUTER_API_KEY";
 
 async function callOpenRouterFallback(prompt: string) {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {

@@ -3,8 +3,8 @@ import path from "path";
 import Papa from "papaparse";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyDdKqsvMKkXWcR_D0zy-uOCM9TBlpegqjw";
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "sk-or-v1-4c4...df6";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY";
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "YOUR_OPENROUTER_API_KEY";
 
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
@@ -33,7 +33,7 @@ async function callOpenRouterFallback(prompt: string) {
 
 async function trainOnDataset() {
     console.log("Loading ADHD Dataset...");
-    const filePath = path.join(process.cwd(), "public", "dataset", "adhd_data.csv");
+    const filePath = path.join(process.cwd(), "src", "dataset", "adhd_data.csv");
     
     if (!fs.existsSync(filePath)) {
         console.error("Dataset not found at:", filePath);

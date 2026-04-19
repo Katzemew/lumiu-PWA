@@ -23,6 +23,9 @@
 # misc
 .DS_Store
 *.pem
+src/dataset/
+training_results.json
+tuning_metadata.json
 
 # debug
 npm-debug.log*

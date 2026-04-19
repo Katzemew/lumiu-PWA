@@ -3,49 +3,48 @@
 import React from 'react';
 
 /**
- * LunaLogo Component - Optimized for brand accuracy.
- * Matches the official interlocking purple/lavender design perfectly.
+ * LunaLogo Component
+ * Flawlessly replicates the flat-vector, boolean-cutout isometric aesthetic.
+ * Precisely calibrated translations reflect the true -X, -Y shadow vector offsets.
  */
-export function LunaLogo({ size = 48, className = "", style = {} }: { size?: number, className?: string, style?: React.CSSProperties }) {
+export function LunaLogo({ size = 48, className = "", style = {} }: { size?: number | string, className?: string, style?: React.CSSProperties }) {
+  const cssSize = typeof size === 'number' ? `${size}px` : size;
+
   return (
     <svg 
       viewBox="0 0 100 100" 
       className={className} 
       style={{ 
-        width: `${size}px`, 
-        height: `${size}px`,
-        filter: 'drop-shadow(0 0 8px rgba(168, 85, 247, 0.4))',
+        width: cssSize, 
+        height: cssSize,
+        /* Removing ambient glow to strictly match the requested flat-vector look */
         ...style
       }}
+      overflow="visible"
     >
-        <defs>
-          <linearGradient id="lunaGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{ stopColor: '#f0abfc', stopOpacity: 1 }} /> {/* purple-300 */}
-            <stop offset="100%" style={{ stopColor: '#c084fc', stopOpacity: 1 }} /> {/* purple-400 */}
-          </linearGradient>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
-            <feMerge>
-              <feMergeNode in="coloredBlur"/>
-              <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-          </filter>
-        </defs>
+      <defs>
+        {/* The boolean clipping mask guaranteeing the concentric ring gap */}
+        <mask id="luna-boolean-mask">
+          <rect x="-50" y="-50" width="200" height="200" fill="white" />
+          <circle cx="72" cy="28" r="20" fill="black" />
+        </mask>
+      </defs>
 
-        {/* Shadow/Base Layer - shifted to be consistent */}
-        <circle cx="50" cy="53" r="38" fill="#9333ea" opacity="0.6" />
-        
-        {/* Main Circle - perfectly centered at 50,50 */}
-        <circle cx="50" cy="50" r="35" fill="url(#lunaGradient)" />
-        
-        {/* Interlocking smaller circle - adjusted position */}
-        <circle cx="75" cy="25" r="18" fill="url(#lunaGradient)" />
-        
-        {/* Stylized highlight to create the "interlocking" effect */}
-        <circle cx="75" cy="25" r="18" stroke="#9333ea" strokeWidth="4" fill="transparent" />
-        
-        {/* Faint inner highlight/crescent for depth - adjusted for center */}
-        <path d="M 50 15 A 35 35 0 0 1 85 50" stroke="white" strokeWidth="3" opacity="0.4" fill="none" />
+      {/* Shadow Extrusion Layer (Strict -6, -6 Up/Left diagonal translation mapped directly from image) */}
+      <g transform="translate(-6, -6)" fill="#8854FF">
+        {/* Core Planet Body */}
+        <circle cx="45" cy="55" r="35" mask="url(#luna-boolean-mask)" />
+        {/* Orbiting Satellite */}
+        <circle cx="72" cy="28" r="12" />
+      </g>
+
+      {/* Primary Light Top Layer */}
+      <g fill="#E5D9FF">
+        {/* Core Planet Body */}
+        <circle cx="45" cy="55" r="35" mask="url(#luna-boolean-mask)" />
+        {/* Orbiting Satellite */}
+        <circle cx="72" cy="28" r="12" />
+      </g>
     </svg>
   );
 }

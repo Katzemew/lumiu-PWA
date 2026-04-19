@@ -33,7 +33,7 @@
   box-sizing: border-box;
   padding: 0;
   margin: 0;
-  cursor: default;
+  cursor: none !important;
 }
 
 html,
@@ -406,8 +406,11 @@ body::before {
 
 /* Buttons */
 button,
-a {
-  cursor: pointer;
+a,
+input,
+select,
+textarea {
+  cursor: none !important;
   text-decoration: none;
 }
 

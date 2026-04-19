@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { LumiuWordmark } from "@/components/LumiuWordmark";
+import { AccessibilityWidget } from "@/components/AccessibilityWidget";
 
 export default function Home() {
   const [isLoggedin, setIsLoggedin] = useState(() => {
@@ -127,6 +128,7 @@ export default function Home() {
                 </Link>
               </>
             )}
+            <AccessibilityWidget inline />
           </div>
         </div>
       </div>

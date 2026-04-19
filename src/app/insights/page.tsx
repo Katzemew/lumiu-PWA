@@ -1,41 +1,14 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BarChart2, PieChart, Activity, Info, Sparkles, LayoutGrid } from "lucide-react";
-import InsightsHero from "../../insights/components/InsightsHero";
-
-interface InsightRow {
-    Age: number;
-    Educational_Level: string;
-    Focus_Score_Video: number;
-    Difficulty_Organizing_Tasks: number;
-    Diagnosis_Class: number;
-}
-
-interface InsightSummary {
-    totalRows: number;
-    averageFocusScore: number;
-    averageOrgDifficulty: number;
-    diagnosisClasses: Record<string, number>;
-}
-
-interface InsightData {
-    summary: InsightSummary;
-    data: InsightRow[];
-}
-
-interface InsightCardProps {
-    title: string;
-    value: string;
-    icon: ReactNode;
-    color: string;
-}
+import InsightsHero from "./components/InsightsHero";
 
 export default function InsightsPage() {
     const router = useRouter();
-    const [data, setData] = useState<InsightData | null>(null);
+    const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -46,9 +19,8 @@ export default function InsightsPage() {
                 if (!response.ok) throw new Error("Failed to load dataset");
                 const result = await response.json();
                 setData(result);
-            } catch (err: unknown) {
-                const message = err instanceof Error ? err.message : "Failed to load dataset";
-                setError(message);
+            } catch (err: any) {
+                setError(err.message);
             } finally {
                 setLoading(false);
             }
@@ -59,7 +31,7 @@ export default function InsightsPage() {
 
     if (loading) return (
         <div className="min-h-screen bg-[#f5f3ff] flex items-center justify-center">
-            <motion.div 
+            <motion.div
                 animate={{ rotate: 360 }}
                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                 className="w-12 h-12 border-4 border-[#a855f7] border-t-transparent rounded-full"
@@ -71,7 +43,7 @@ export default function InsightsPage() {
         <div className="min-h-screen bg-[#f5f3ff] flex flex-col items-center justify-center p-8">
             <h1 className="text-2xl font-black text-red-500 mb-4">Error loading insights</h1>
             <p className="text-[#64748b] mb-8">{error}</p>
-            <button 
+            <button
                 onClick={() => router.back()}
                 className="px-6 py-2 bg-[#a855f7] text-white rounded-full font-bold"
             >
@@ -90,39 +62,30 @@ export default function InsightsPage() {
                     <ArrowLeft size={18} /> Back to Dashboard
                 </button>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mb-12"
-                >
-                    <h1 className="text-5xl font-black mb-4">ADHD <span className="text-[#a855f7]">Insights</span></h1>
-                    <p className="text-xl text-[#64748b] max-w-2xl leading-relaxed">
-                        Explore anonymized patterns and correlations from a research dataset containing {data?.summary?.totalRows.toLocaleString()} entries.
-                    </p>
-                </motion.div>
+                <InsightsHero totalRows={data?.summary?.totalRows} />
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-                    <InsightCard 
-                        title="Total Records" 
-                        value={data?.summary?.totalRows != null ? data.summary.totalRows.toLocaleString() : "-"} 
+                    <InsightCard
+                        title="Total Records"
+                        value={data?.summary?.totalRows.toLocaleString()}
                         icon={<Activity className="text-blue-500" />}
                         color="bg-blue-50"
                     />
-                    <InsightCard 
-                        title="Avg Focus Score" 
-                        value={data?.summary?.averageFocusScore != null ? data.summary.averageFocusScore.toFixed(2) : "-"} 
+                    <InsightCard
+                        title="Avg Focus Score"
+                        value={`${data?.summary?.averageFocusScore.toFixed(2)}`}
                         icon={<Sparkles className="text-purple-500" />}
                         color="bg-purple-50"
                     />
-                    <InsightCard 
-                        title="Org Difficulty" 
-                        value={data?.summary?.averageOrgDifficulty != null ? data.summary.averageOrgDifficulty.toFixed(2) : "-"} 
+                    <InsightCard
+                        title="Org Difficulty"
+                        value={`${data?.summary?.averageOrgDifficulty.toFixed(2)}`}
                         icon={<LayoutGrid className="text-indigo-500" />}
                         color="bg-indigo-100"
                     />
-                    <InsightCard 
-                        title="Diagnosis Classes" 
-                        value={Object.keys(data?.summary?.diagnosisClasses || {}).length.toString()} 
+                    <InsightCard
+                        title="Diagnosis Classes"
+                        value={Object.keys(data?.summary?.diagnosisClasses || {}).length.toString()}
                         icon={<Info className="text-pink-500" />}
                         color="bg-pink-50"
                     />
@@ -145,15 +108,15 @@ export default function InsightsPage() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {data?.data.slice(0, 10).map((row: InsightRow, idx: number) => (
+                                    {data?.data.slice(0, 10).map((row: any, idx: number) => (
                                         <tr key={idx} className="border-b border-purple-50 hover:bg-purple-50 transition-colors group">
                                             <td className="py-4 font-black">{row.Age} yr</td>
                                             <td className="py-4 text-[#64748b] font-medium">{row.Educational_Level}</td>
                                             <td className="py-4">
                                                 <div className="flex items-center gap-3">
                                                     <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden">
-                                                        <div 
-                                                            className="h-full bg-gradient-to-r from-purple-400 to-purple-600" 
+                                                        <div
+                                                            className="h-full bg-gradient-to-r from-purple-400 to-purple-600"
                                                             style={{ width: `${(row.Focus_Score_Video / 10) * 100}%` }}
                                                         />
                                                     </div>
@@ -169,12 +132,12 @@ export default function InsightsPage() {
                                             </td>
                                             <td className="py-4">
                                                 <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter ${
-                                                    row.Diagnosis_Class === 3 ? 'bg-purple-100 text-purple-700' : 
+                                                    row.Diagnosis_Class === 3 ? 'bg-purple-100 text-purple-700' :
                                                     row.Diagnosis_Class === 2 ? 'bg-blue-100 text-blue-700' :
                                                     row.Diagnosis_Class === 1 ? 'bg-indigo-100 text-indigo-700' :
                                                     'bg-slate-100 text-slate-500'
                                                 }`}>
-                                                    {row.Diagnosis_Class === 3 ? 'Combined' : 
+                                                    {row.Diagnosis_Class === 3 ? 'Combined' :
                                                      row.Diagnosis_Class === 2 ? 'Hyperactive' :
                                                      row.Diagnosis_Class === 1 ? 'Inattentive' : 'Control'}
                                                 </span>
@@ -193,16 +156,16 @@ export default function InsightsPage() {
                         <div>
                             <h2 className="text-2xl font-black mb-4">Diagnosis Distribution</h2>
                             <div className="space-y-4">
-                                {Object.entries(data?.summary?.diagnosisClasses || {}).map(([key, value]: [string, number]) => (
+                                {Object.entries(data?.summary?.diagnosisClasses || {}).map(([key, value]: [string, any]) => (
                                     <div key={key}>
                                         <div className="flex justify-between text-sm mb-1 font-bold">
                                             <span>Class {key}</span>
                                             <span>{Math.round((value / (data?.summary?.totalRows || 1)) * 100)}%</span>
                                         </div>
                                         <div className="w-full h-3 bg-purple-50 rounded-full overflow-hidden">
-                                            <motion.div 
+                                            <motion.div
                                                 initial={{ width: 0 }}
-                                                animate={{ width: `${data ? (value / data.summary.totalRows) * 100 : 0}%` }}
+                                                animate={{ width: `${(value / data?.summary?.totalRows) * 100}%` }}
                                                 className="h-full bg-[#a855f7]"
                                             />
                                         </div>
@@ -210,7 +173,7 @@ export default function InsightsPage() {
                                 ))}
                             </div>
                         </div>
-                        
+
                         <div className="mt-8 p-6 bg-purple-100 rounded-[30px] border-2 border-purple-200">
                             <h3 className="font-black text-purple-700 mb-2">Research Tip 🧪</h3>
                             <p className="text-sm text-purple-900 leading-relaxed font-semibold">
@@ -224,7 +187,7 @@ export default function InsightsPage() {
     );
 }
 
-function InsightCard({ title, value, icon, color }: InsightCardProps) {
+function InsightCard({ title, value, icon, color }: any) {
     return (
         <div className={`${color} p-6 rounded-[35px] border border-white shadow-lg`}>
             <div className="w-10 h-10 bg-white rounded-2xl flex items-center justify-center mb-4 shadow-sm">

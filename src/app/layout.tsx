@@ -5,6 +5,7 @@ import { AccessibilityProvider } from "@/context/AccessibilityContext";
 import { AccessibilityWidget } from "@/components/AccessibilityWidget";
 import { LunaFloatingButton } from "@/components/LunaFloatingButton";
 import { OfflineSyncManager } from "@/components/OfflineSyncManager";
+import CustomCursor from "@/components/CustomCursor";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -41,6 +42,7 @@ export default function RootLayout({
           </main>
           <AccessibilityWidget />
           <LunaFloatingButton />
+          <CustomCursor />
         </AccessibilityProvider>
       </body>
     </html>

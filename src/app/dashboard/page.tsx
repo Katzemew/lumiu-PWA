@@ -26,7 +26,7 @@ export default function DashboardPage() {
         { name: "Luna", icon: Moon, href: "/luna", active: false },
         { name: "Focus Mode", icon: Maximize, href: "/focus", active: false },
         { name: "GoK", icon: Asterisk, href: "/galaxy", active: false },
-        { name: "Dashboard", icon: LayoutGrid, href: "/dashboard/insights", active: false },
+        { name: "Analytics", icon: UserCircle, href: "/dashboard/student", active: false },
     ];
 
     const bottomModules = [

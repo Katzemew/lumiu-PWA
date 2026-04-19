@@ -5,7 +5,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAccessibility } from "@/context/AccessibilityContext";
 import { Settings, X, Type, Search, Eye, Orbit } from "lucide-react";
 
-export function AccessibilityWidget() {
+import { usePathname } from "next/navigation";
+
+export function AccessibilityWidget({ inline = false }: { inline?: boolean }) {
+    const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
     const {
         dyslexiaFont, setDyslexiaFont,
@@ -14,15 +17,21 @@ export function AccessibilityWidget() {
         reducedMotion, setReducedMotion
     } = useAccessibility();
 
+    if (!inline && pathname === '/') return null;
+
+    const containerClasses = inline
+        ? "relative z-[100] font-sans"
+        : "fixed top-6 right-6 z-[100] font-sans";
+
     return (
-        <div className="fixed bottom-6 right-6 z-[100] font-sans">
+        <div className={containerClasses}>
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
-                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        initial={{ opacity: 0, y: -20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                        className="absolute bottom-16 right-0 mb-4 w-80 bg-white shadow-2xl rounded-3xl p-6 border border-purple-100 overflow-hidden"
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        className={`absolute mt-4 w-80 bg-white shadow-2xl rounded-3xl p-6 border border-purple-100 overflow-hidden ${inline ? 'top-12 right-0' : 'top-16 right-0'}`}
                     >
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-xl font-bold text-[#1e1b4b] flex items-center gap-2">
@@ -125,9 +134,9 @@ export function AccessibilityWidget() {
 
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-14 h-14 bg-white text-[#a855f7] rounded-full flex items-center justify-center cursor-pointer shadow-[0_8px_30px_rgb(0,0,0,0.12)] hover:scale-105 active:scale-95 transition-all border border-purple-50"
+                className={`flex items-center justify-center cursor-pointer shadow-[0_4px_20px_rgba(0,0,0,0.2)] hover:shadow-[0_8px_30px_rgba(168,85,247,0.3)] hover:bg-white/20 hover:scale-105 active:scale-95 transition-all border border-white/20 bg-white/10 backdrop-blur-md text-white rounded-full ${inline ? 'w-10 h-10' : 'w-14 h-14'}`}
             >
-                <Settings size={26} className={isOpen ? "rotate-90 transition-transform duration-300" : "transition-transform duration-300"} />
+                <Settings size={inline ? 20 : 26} className={isOpen ? "rotate-90 transition-transform duration-300" : "transition-transform duration-300"} />
             </button>
         </div>
     );

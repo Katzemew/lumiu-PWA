@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Stars, Html, Line, Sphere } from "@react-three/drei";
 import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { motion, AnimatePresence } from "framer-motion";
@@ -115,7 +115,7 @@ function StarMap() {
                 <group 
                     key={constellation.id} 
                     position={[constellation.x * 4, constellation.y * 4, constellation.z * 4]}
-                    scale={[2.5, 2.5, 2.5]}
+                    scale={hoveredConstellation === constellation.id ? [2.55, 2.55, 2.55] : [2.5, 2.5, 2.5]}
                     onPointerEnter={(e) => { e.stopPropagation(); setHoveredConstellation(constellation.id); }}
                     onPointerOut={() => setHoveredConstellation(null)}
                 >
@@ -125,8 +125,13 @@ function StarMap() {
                         const starB = constellation.stars[b];
                         const isLocked = constellation.status === "locked";
                         const isCompleted = starA.completed && starB.completed;
-                        const color = isLocked ? "rgba(255, 255, 255, 0.1)" : (isCompleted ? "#fb923c" : "rgba(251, 146, 60, 0.4)");
-                        const lineWidth = isCompleted ? 2 : 1;
+                        const isHovered = hoveredConstellation === constellation.id;
+                        
+                        const color = isLocked ? "rgba(255, 255, 255, 0.1)" : 
+                                      isHovered ? "rgba(34, 211, 238, 0.8)" : 
+                                      isCompleted ? "rgba(168, 85, 247, 0.7)" : 
+                                      "rgba(168, 85, 247, 0.3)";
+                        const lineWidth = isHovered ? 2.5 : (isCompleted ? 1.5 : 0.8);
                         
                         return (
                             <Line
@@ -150,15 +155,15 @@ function StarMap() {
                         
                         // Deterministic pseudo-random size for variety
                         const rand = (star.name.charCodeAt(0) + star.name.charCodeAt(star.name.length - 1)) % 10;
-                        const starSize = 0.07 + (rand * 0.008);
-                        
-                        const color = isLocked ? "#444444" : (isCompleted ? "#ffffff" : "#aaaaaa");
-                        // Add slight blue/orange tint variance for real stellar classes
-                        const glowColor = rand % 3 === 0 ? "#bae6fd" : (rand % 3 === 1 ? "#fed7aa" : "#ffffff"); 
-                        const glow = isCompleted ? glowColor : "#000000";
-                        const glowIntensity = isCompleted ? 2.5 + (rand * 0.4) : 0;
+                        const starSize = 0.08 + (rand * 0.01);
                         
                         const isHovered = hoveredConstellation === constellation.id;
+                        const color = isLocked ? "#444444" : (isCompleted ? "#ffffff" : "#cccccc");
+                        
+                        // Add high-end neon variance: Teal, Purple, Bright White
+                        const glowColor = rand % 3 === 0 ? "#22d3ee" : (rand % 3 === 1 ? "#a855f7" : "#ffffff"); 
+                        const glow = isCompleted ? glowColor : (isLocked ? "#000000" : "rgba(168, 85, 247, 0.4)");
+                        const glowIntensity = isHovered ? 4.0 : (isCompleted ? 1.8 + (rand * 0.5) : 0.8);
 
                         return (
                             <group key={star.id} position={[star.dx, star.dy, star.dz]}>
@@ -203,12 +208,30 @@ function StarMap() {
     );
 }
 
+
+function MajesticDrift({ active }: { active: boolean }) {
+    useFrame((state, delta) => {
+        if (active) {
+            // Elegant slow dolly inward
+            state.camera.position.z -= 0.15 * delta;
+            // Majestic sub-degree rotation
+            state.camera.rotation.z += 0.005 * delta;
+        }
+    });
+    return null;
+}
+
 export default function GalaxyTrackerPage() {
     const [showHint, setShowHint] = useState(true);
+    const [showIntro, setShowIntro] = useState(true);
 
     useEffect(() => {
         const timer = setTimeout(() => setShowHint(false), 7000);
-        return () => clearTimeout(timer);
+        const introTimer = setTimeout(() => setShowIntro(false), 3500);
+        return () => {
+            clearTimeout(timer);
+            clearTimeout(introTimer);
+        };
     }, []);
 
     return (
@@ -222,6 +245,8 @@ export default function GalaxyTrackerPage() {
             userSelect: "none",
             zIndex: 100
         }}>
+
+
             {/* Top Navigation Overlay */}
             <div style={{
                 position: "absolute",
@@ -272,7 +297,7 @@ export default function GalaxyTrackerPage() {
                                 letterSpacing: "1px",
                                 pointerEvents: "none",
                                 textAlign: "right",
-                                marginTop: "8px"
+                                marginTop: "60px" // Added margin to clear the global settings widget
                             }}
                         >
                             Drag to rotate. <br/> Scroll to zoom.
@@ -292,9 +317,10 @@ export default function GalaxyTrackerPage() {
                     <Bloom luminanceThreshold={1.2} mipmapBlur intensity={1.8} />
                 </EffectComposer>
 
-                {/* More realistic immersive background stars */}
-                <Stars radius={80} depth={50} count={8000} factor={4} saturation={0.8} fade speed={0.5} />
+                {/* Static, decent background stars */}
+                <Stars radius={15} depth={100} count={9000} factor={5} saturation={0.5} speed={0} fade />
                 
+                <MajesticDrift active={showIntro} />
                 <OrbitControls enableDamping dampingFactor={0.05} maxDistance={50} minDistance={5} />
                 
                 <StarMap />
