@@ -1,0 +1,57 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String        @id @default(uuid())
+  password     String        @unique
+  name         String        @unique
+  email        String        @unique
+  adhd_profile String?
+  settings     String?
+  quizzes      Quiz[]
+  chatSessions ChatSession[]
+}
+
+model Quiz {
+  id       String  @id @default(uuid())
+  title    String
+  subject  String
+  score    Int?
+  feedback String?
+  userId   String
+  user     User    @relation(fields: [userId], references: [id])
+}
+
+model ChatSession {
+  id         String    @id @default(uuid())
+  topic      String
+  started_at DateTime  @default(now())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id])
+  messages   Message[]
+}
+
+model Message {
+  id            String      @id @default(uuid())
+  role          String      // "user" or "ai"
+  content       String
+  timestamp     DateTime    @default(now())
+  chatSessionId String
+  chatSession   ChatSession @relation(fields: [chatSessionId], references: [id])
+}
+
+model LearningDataset {
+  id               String @id @default(uuid())
+  traits           String
+  optimal_strategy String
+  context          String
+}

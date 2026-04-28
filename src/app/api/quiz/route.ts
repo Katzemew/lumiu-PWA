@@ -1,8 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "AIzaSyDdKqsvMKkXWcR_D0zy-uOCM9TBlpegqjw");
-const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "sk-or-v1-4c4...df6";
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY");
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || "YOUR_OPENROUTER_API_KEY";
 
 async function callOpenRouterFallback(prompt: string) {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -14,7 +14,7 @@ async function callOpenRouterFallback(prompt: string) {
             "X-Title": "Lumiu App",
         },
         body: JSON.stringify({
-            model: "google/gemini-1.5-flash",
+            model: "google/gemini-flash-lite-latest",
             messages: [
                 { role: "user", content: prompt }
             ]
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
         let responseText = "";
 
         try {
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
             const result = await model.generateContent(prompt);
             responseText = result.response.text();
         } catch (geminiError: any) {

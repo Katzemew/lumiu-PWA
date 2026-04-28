@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { 
     Search, Home, Moon, Maximize, Asterisk, LayoutGrid,
-    Settings, UserCircle, ChevronLeft, ChevronRight
+    Settings, UserCircle, ChevronLeft, ChevronRight,
+    FileText, Presentation, Layers
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -27,6 +28,9 @@ export default function DashboardPage() {
         { name: "Focus Mode", icon: Maximize, href: "/focus", active: false },
         { name: "GoK", icon: Asterisk, href: "/galaxy", active: false },
         { name: "Analytics", icon: UserCircle, href: "/dashboard/student", active: false },
+        { name: "Notes", icon: FileText, href: "/notes", active: false },
+        { name: "Whiteboard", icon: Presentation, href: "/whiteboard", active: false },
+        { name: "Flashcards", icon: Layers, href: "/flashcards", active: false },
     ];
 
     const bottomModules = [

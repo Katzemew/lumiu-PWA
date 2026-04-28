@@ -1,7 +1,7 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 
-const genAI = new GoogleGenerativeAI("AIzaSyDdKqsvMKkXWcR_D0zy-uOCM9TBlpegqjw");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "YOUR_GEMINI_API_KEY");
 
 export async function POST(req: Request) {
     try {
@@ -12,8 +12,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Empty message history." }, { status: 400 });
         }
 
-        // Using gemini-2.5-flash which is the fastest and most efficient model currently available
-        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
 
         // Transform previous messages into Gemini API format
         let rawHistory = messages.slice(0, -1);

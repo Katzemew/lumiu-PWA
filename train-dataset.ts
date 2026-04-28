@@ -18,7 +18,7 @@ async function callOpenRouterFallback(prompt: string) {
             "X-Title": "Lumiu App",
         },
         body: JSON.stringify({
-            model: "google/gemini-1.5-flash",
+            model: "google/gemini-flash-lite-latest",
             messages: [{ role: "user", content: prompt }]
         })
     });
@@ -65,7 +65,7 @@ async function trainOnDataset() {
         let responseText = "";
 
         try {
-            const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+            const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
             const result = await model.generateContent(prompt);
             responseText = await result.response.text();
             console.log("  Successfully used Gemini.");

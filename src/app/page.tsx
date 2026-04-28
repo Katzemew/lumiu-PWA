@@ -7,20 +7,12 @@ import { LumiuWordmark } from "@/components/LumiuWordmark";
 import { AccessibilityWidget } from "@/components/AccessibilityWidget";
 
 export default function Home() {
-  const [isLoggedin, setIsLoggedin] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("user-authenticated") === "true";
-    }
-    return false;
-  });
-  const [userName, setUserName] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("user-name") || "Explorer";
-    }
-    return "Explorer";
-  });
+  const [isLoggedin, setIsLoggedin] = useState(false);
+  const [userName, setUserName] = useState("Explorer");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     const auth = localStorage.getItem("user-authenticated");
     if (auth === "true") {
       setIsLoggedin(true);
@@ -109,7 +101,12 @@ export default function Home() {
           </div>
 
           <div className="flex items-center gap-4">
-            {isLoggedin ? (
+            {!mounted ? (
+              <div style={{ display: 'flex', gap: '16px', visibility: 'hidden' }}>
+                <div style={navBtnStyle}>Login</div>
+                <div style={navBtnStyle}>Sign Up</div>
+              </div>
+            ) : isLoggedin ? (
               <>
                 <div style={{ ...navBtnStyle, backgroundColor: 'rgba(255,255,255,0.1)', border: 'none' }} className="cursor-default">
                   👋 Hi, {userName}

@@ -1,57 +1,69 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, useMotionValue, useSpring } from "framer-motion";
 
 export default function CustomCursor() {
-    const [mousePosition, setMousePosition] = useState({ x: -100, y: -100 });
+    const cursorX = useMotionValue(-100);
+    const cursorY = useMotionValue(-100);
+    
+    const springConfig = { damping: 40, stiffness: 1500, mass: 0.1 };
+    const cursorXSpring = useSpring(cursorX, springConfig);
+    const cursorYSpring = useSpring(cursorY, springConfig);
+
     const [isHovering, setIsHovering] = useState(false);
     const [isVisible, setIsVisible] = useState(false);
 
     useEffect(() => {
         const updateMousePosition = (e: MouseEvent) => {
-            setMousePosition({ x: e.clientX, y: e.clientY });
+            cursorX.set(e.clientX);
+            cursorY.set(e.clientY);
             if (!isVisible) setIsVisible(true);
-            
-            // Check if hovering over a clickable element
+        };
+
+        const handleMouseOver = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
-            if (target.closest('button, a, input, select, textarea, [role="button"], .cursor-pointer')) {
-                setIsHovering(true);
-            } else {
-                setIsHovering(false);
+            if (target && target.closest) {
+                if (target.closest('button, a, input, select, textarea, [role="button"], .cursor-pointer')) {
+                    setIsHovering(true);
+                } else {
+                    setIsHovering(false);
+                }
             }
         };
 
         const handleMouseLeave = () => setIsVisible(false);
         const handleMouseEnter = () => setIsVisible(true);
 
-        window.addEventListener("mousemove", updateMousePosition);
+        window.addEventListener("mousemove", updateMousePosition, { passive: true });
+        window.addEventListener("mouseover", handleMouseOver, { passive: true });
         document.addEventListener("mouseleave", handleMouseLeave);
         document.addEventListener("mouseenter", handleMouseEnter);
 
         return () => {
             window.removeEventListener("mousemove", updateMousePosition);
+            window.removeEventListener("mouseover", handleMouseOver);
             document.removeEventListener("mouseleave", handleMouseLeave);
             document.removeEventListener("mouseenter", handleMouseEnter);
         };
-    }, [isVisible]);
+    }, [isVisible, cursorX, cursorY]);
 
     if (!isVisible) return null;
 
     return (
         <motion.div
             className="fixed top-0 left-0 pointer-events-none z-[99999]"
+            style={{
+                x: cursorXSpring,
+                y: cursorYSpring,
+            }}
             animate={{
-                x: mousePosition.x, // Arrow tip perfectly aligns with coordinates
-                y: mousePosition.y,
                 scale: isHovering ? 1.15 : 1,
                 rotate: isHovering ? -10 : 0
             }}
             transition={{
-                type: "spring",
-                stiffness: 1500,
-                damping: 40,
-                mass: 0.1
+                scale: { type: "spring", stiffness: 300, damping: 20 },
+                rotate: { type: "spring", stiffness: 300, damping: 20 }
             }}
         >
             <svg 
@@ -64,14 +76,12 @@ export default function CustomCursor() {
             >
                 <defs>
                     <linearGradient id="cursorGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#333333" />     {/* Bright shiny grey */}
-                        <stop offset="60%" stopColor="#000000" />     {/* Solid deep black */}
-                        <stop offset="100%" stopColor="#1a1a1a" />    {/* Slight bounce light bottom */}
+                        <stop offset="0%" stopColor="#333333" />
+                        <stop offset="60%" stopColor="#000000" />
+                        <stop offset="100%" stopColor="#1a1a1a" />
                     </linearGradient>
-
                 </defs>
                 
-                {/* Tailless ADHD-Friendly Cursor Path */}
                 <path 
                     d="M3.5 1.5 L3.5 24.5 L10.5 17.5 L22.5 15 Z" 
                     fill="url(#cursorGradient)" 

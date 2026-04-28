@@ -16,15 +16,41 @@ export default function LoginPage() {
         rememberMe: false,
     });
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState("");
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
-        setTimeout(() => {
+        setError("");
+
+        try {
+            const res = await fetch("/api/auth/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(formData)
+            });
+
+            let data;
+            try {
+                data = await res.json();
+            } catch (err) {
+                throw new Error("Server returned an invalid response. Please restart 'npm run dev'.");
+            }
+
+            if (!res.ok) {
+                setError(data.error || "Login failed");
+                setLoading(false);
+                return;
+            }
+
+            // Success
             localStorage.setItem("user-authenticated", "true");
-            localStorage.setItem("user-name", formData.name || "User");
+            localStorage.setItem("user-name", data.user.name || "User");
             router.push("/");
-        }, 1500);
+        } catch (err: any) {
+            setError(err.message || "Something went wrong.");
+            setLoading(false);
+        }
     };
 
     const containerStyle = {
@@ -140,6 +166,12 @@ export default function LoginPage() {
                     <div style={{ maxWidth: '440px', width: '100%', margin: '0 auto' }}>
                         <LumiuWordmark size="lg" className="mb-6" />
                         <p style={subtitleStyle}>Please Log in to get started</p>
+
+                        {error && (
+                            <div style={{ color: "red", marginBottom: "15px", fontWeight: "bold" }}>
+                                {error}
+                            </div>
+                        )}
 
                         <form onSubmit={handleSubmit}>
                             <div style={inputContainerStyle}>

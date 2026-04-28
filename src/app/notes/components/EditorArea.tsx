@@ -4,11 +4,14 @@
 // =============================================
 
 import React, { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useNotes } from '../context';
-import { NoteEditor } from './NoteEditor';
 import { MediaPanel } from './MediaPanel';
 import { NOTE_COLORS } from '../types';
 import type { NoteIcon } from '../types';
+
+const NoteEditor = dynamic(() => import('./NoteEditor').then(mod => mod.NoteEditor), { ssr: false });
+
 
 const NOTE_ICONS: string[] = ['📄', '📝', '🧠', '💡', '⚡', '🎯', '🌟', '🔬', '📊', '🎨', '🚀', '🔑', '⭐', '🌿', '🔖', '📌', '🗒️', '🎓', '💼', '🤝'];
 
