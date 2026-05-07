@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Chillax:wght@400;500;600;700;800&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,6 +9,7 @@
   --bg-deep: #020617;
   --bg-space: #0f172a;
   --bg-glass-heavy: rgba(15, 23, 42, 0.85);
+  --font-chillax: 'Chillax', var(--font-primary);
   --bg-glass-light: rgba(255, 255, 255, 0.03);
 
   --accent-teal: #2dd4bf;

@@ -6,7 +6,7 @@ import Link from "next/link";
 import { 
     Search, Home, Moon, Maximize, Asterisk, LayoutGrid,
     Settings, UserCircle, ChevronLeft, ChevronRight,
-    FileText, Presentation, Layers
+    FileText, Presentation, Layers, Zap
 } from "lucide-react";
 
 export default function DashboardPage() {
@@ -31,6 +31,7 @@ export default function DashboardPage() {
         { name: "Notes", icon: FileText, href: "/notes", active: false },
         { name: "Whiteboard", icon: Presentation, href: "/whiteboard", active: false },
         { name: "Flashcards", icon: Layers, href: "/flashcards", active: false },
+        { name: "Neural", icon: Zap, href: "/gamification", active: false },
     ];
 
     const bottomModules = [

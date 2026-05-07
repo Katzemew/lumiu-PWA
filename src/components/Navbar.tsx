@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Moon, Star, BookOpen, Settings, LayoutGrid, FileText, Presentation, Layers } from "lucide-react";
+import { Moon, Star, BookOpen, Settings, LayoutGrid, FileText, Presentation, Layers, Zap } from "lucide-react";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 
@@ -29,6 +29,7 @@ export default function Navbar() {
                 <NavItem icon={<FileText size={24} />} href="/notes" label="Notes" active={pathname === "/notes"} />
                 <NavItem icon={<Presentation size={24} />} href="/whiteboard" label="Board" active={pathname === "/whiteboard"} />
                 <NavItem icon={<Layers size={24} />} href="/flashcards" label="Cards" active={pathname === "/flashcards"} />
+                <NavItem icon={<Zap size={24} />} href="/gamification" label="Neural" active={pathname === "/gamification"} />
             </div>
 
             <div className="mt-auto w-full px-3">

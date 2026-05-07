@@ -1,28 +1,6 @@
 import type { NextConfig } from "next";
-// force hard restart to clear Prisma cache
 
-const withPWA = require("next-pwa")({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: false, // Force enable for testing Offline Sync in both Dev and Prod
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'lumiu-offline-sync',
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 24 * 60 * 60 * 30, // 30 Days
-        },
-        cacheableResponse: {
-          statuses: [0, 200]
-        },
-      }
-    }
-  ]
-});
+const withPWA = require("next-pwa");
 
 const nextConfig: NextConfig = {
   turbopack: {},
@@ -66,4 +44,25 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default withPWA(nextConfig);
+export default withPWA({
+  dest: "public",
+  register: true,
+  skipWaiting: true,
+  disable: false, // Force enable for testing Offline Sync in both Dev and Prod
+  runtimeCaching: [
+    {
+      urlPattern: /^https?.*/,
+      handler: 'NetworkFirst',
+      options: {
+        cacheName: 'lumiu-offline-sync',
+        expiration: {
+          maxEntries: 200,
+          maxAgeSeconds: 24 * 60 * 60 * 30, // 30 Days
+        },
+        cacheableResponse: {
+          statuses: [0, 200]
+        },
+      }
+    }
+  ]
+})(nextConfig);

@@ -9,6 +9,16 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      colors: {
+        lumiu: {
+          bg: "#D6D1FA",
+          surface: "#F4F0FF",
+          button: "#A388F6",
+          purple: "#6E2CF3",
+          text: "#4A3F8D",
+          border: "#D8CEFF",
+        },
+      },
       backgroundImage: {
         "gradient-radial": "radial-gradient(var(--tw-gradient-stops))",
         "gradient-conic":
