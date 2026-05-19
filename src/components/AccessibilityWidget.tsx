@@ -17,6 +17,12 @@ export function AccessibilityWidget({ inline = false }: { inline?: boolean }) {
         reducedMotion, setReducedMotion
     } = useAccessibility();
 
+    const formatLabel = (val: string) => {
+        if (val === 'xlarge') return 'X-Large';
+        if (val === 'xwide') return 'X-Wide';
+        return val.charAt(0).toUpperCase() + val.slice(1);
+    };
+
     if (!inline && pathname === '/') return null;
 
     const containerClasses = inline
@@ -88,7 +94,7 @@ export function AccessibilityWidget({ inline = false }: { inline?: boolean }) {
                                             onClick={() => setTextSize(size)}
                                             className={`flex-1 py-1.5 cursor-pointer text-xs font-bold rounded-lg transition-colors z-10 ${textSize === size ? 'text-white' : 'text-gray-500'}`}
                                         >
-                                            {size.toUpperCase()}
+                                            {formatLabel(size)}
                                         </button>
                                     ))}
                                     <div
@@ -114,7 +120,7 @@ export function AccessibilityWidget({ inline = false }: { inline?: boolean }) {
                                             onClick={() => setTextSpacing(spacing)}
                                             className={`flex-1 py-1.5 cursor-pointer text-xs font-bold rounded-lg transition-colors z-10 ${textSpacing === spacing ? 'text-white' : 'text-gray-500'}`}
                                         >
-                                            {spacing.toUpperCase()}
+                                            {formatLabel(spacing)}
                                         </button>
                                     ))}
                                     <div

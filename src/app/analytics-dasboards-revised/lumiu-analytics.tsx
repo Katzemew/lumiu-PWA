@@ -1,4 +1,7 @@
+"use client";
+
 import { useState, useEffect, useRef, useMemo } from "react";
+import Link from "next/link";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Range = "7d" | "30d" | "90d";
@@ -12,13 +15,75 @@ const DAYS_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function genStudyData(n: number) {
-  return Array.from({length: n}, (_, i) => ({
-    day: i,
-    minutes: rand(20, 180),
-    focus: randF(60, 98),
-    cards: rand(5, 60),
-    xp: rand(50, 400),
-  }));
+  const today = new Date();
+  today.setHours(0,0,0,0);
+  
+  // Generate n days backwards
+  const list = Array.from({length: n}, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (n - 1 - i));
+    
+    // Deterministic sine-wave base
+    const dayOfWeek = d.getDay(); // 0 is Sunday, 6 is Saturday
+    const weekendModifier = (dayOfWeek === 0 || dayOfWeek === 6) ? 0.65 : 1.0;
+    const daySeed = d.getDate() + d.getMonth() * 31;
+    const randFactor = Math.sin(daySeed) * 20 + 40;
+    
+    return {
+      day: i,
+      timestamp: d.getTime(),
+      minutes: 0,
+      focus: 0,
+      cards: 0,
+      xp: 0,
+    };
+  });
+  
+  if (typeof window === "undefined") return list;
+
+  try {
+    // Fetch user logs
+    const focusHist = JSON.parse(localStorage.getItem("lumiu-focus-history") || "[]");
+    const quizHist = JSON.parse(localStorage.getItem("lumiu-quiz-history") || "[]");
+    const gameHist = JSON.parse(localStorage.getItem("lumiu-game-history") || "[]");
+    const cardHist = JSON.parse(localStorage.getItem("lumiu-flashcard-history") || "[]");
+
+    // Map actual logs to the corresponding calendar days
+    list.forEach(day => {
+      const nextDayTime = day.timestamp + 86400000;
+      
+      // Actual focus minutes
+      const dayFocus = focusHist.filter((x: any) => x.timestamp >= day.timestamp && x.timestamp < nextDayTime);
+      if (dayFocus.length > 0) {
+        day.minutes += dayFocus.reduce((a: number, c: any) => a + (c.duration || 0), 0);
+        day.focus = Math.round(dayFocus.reduce((a: number, c: any) => a + (c.focusScore || 85), 0) / dayFocus.length);
+        day.xp += dayFocus.reduce((a: number, c: any) => a + (c.xp || 0), 0);
+      }
+      
+      // Actual flashcards reviewed
+      const dayCards = cardHist.filter((x: any) => x.timestamp >= day.timestamp && x.timestamp < nextDayTime);
+      if (dayCards.length > 0) {
+        day.cards += dayCards.reduce((a: number, c: any) => a + (c.cardsReviewed || 0), 0);
+        day.xp += dayCards.reduce((a: number, c: any) => a + (c.xp || 0), 0);
+      }
+      
+      // Actual quizzes
+      const dayQuizzes = quizHist.filter((x: any) => x.timestamp >= day.timestamp && x.timestamp < nextDayTime);
+      if (dayQuizzes.length > 0) {
+        day.xp += dayQuizzes.reduce((a: number, c: any) => a + (c.xp || 0), 0);
+      }
+
+      // Actual games
+      const dayGames = gameHist.filter((x: any) => x.timestamp >= day.timestamp && x.timestamp < nextDayTime);
+      if (dayGames.length > 0) {
+        day.xp += dayGames.reduce((a: number, c: any) => a + (c.xp || 0), 0);
+      }
+    });
+  } catch (e) {
+    console.error("Error overlaying user logs:", e);
+  }
+
+  return list;
 }
 
 const SUBJECTS = [
@@ -30,11 +95,11 @@ const SUBJECTS = [
 ];
 
 const GAMES_DATA = [
-  { name: "Lumosity",        icon: "🧠", plays: 34, avgScore: 87, bestChain: 18, xp: 1240 },
-  { name: "TypeRacer",       icon: "⌨️", plays: 28, avgScore: 91, bestWPM: 72,  xp: 980  },
-  { name: "Concept Drop",    icon: "🎯", plays: 41, avgScore: 76, bestCombo: 14, xp: 1560 },
-  { name: "Semantic Sprint", icon: "⚡", plays: 22, avgScore: 83, avgBridge: 68, xp: 820  },
-  { name: "Echo Chamber",    icon: "🔮", plays: 19, avgScore: 79, avgRecall: 74, xp: 700  },
+  { name: "Lumosity",        icon: "🧠", plays: 0, avgScore: 0, bestChain: 0, xp: 0 },
+  { name: "TypeRacer",       icon: "⌨️", plays: 0, avgScore: 0, bestWPM: 0,  xp: 0  },
+  { name: "Concept Drop",    icon: "🎯", plays: 0, avgScore: 0, bestCombo: 0, xp: 0 },
+  { name: "Semantic Sprint", icon: "⚡", plays: 0, avgScore: 0, avgBridge: 0, xp: 0  },
+  { name: "Echo Chamber",    icon: "🔮", plays: 0, avgScore: 0, avgRecall: 0, xp: 0  },
 ];
 
 const INSIGHTS = [
@@ -107,8 +172,8 @@ function BarChart({ data, color, maxVal, labels, height = 140 }: { data: number[
       ))}
       {data.map((v, i) => {
         const x = (i / data.length) * 560 + 2;
-        const h = Math.max(2, (v / maxVal) * height);
-        const isMax = v === Math.max(...data);
+        const h = maxVal > 0 ? Math.max(2, (v / maxVal) * height) : 2;
+        const isMax = maxVal > 0 && v === Math.max(...data);
         return (
           <g key={i}>
             <rect x={x} y={height - h} width={barW} height={h} rx={4}
@@ -126,37 +191,74 @@ function BarChart({ data, color, maxVal, labels, height = 140 }: { data: number[
 }
 
 // ─── Activity Heatmap ─────────────────────────────────────────────────────────
-function Heatmap({ T }: { T: any }) {
-  const hours = ["12a","3a","6a","9a","12p","3p","6p","9p"];
-  const days = ["M","T","W","T","F","S","S"];
-  const data = Array.from({length:7}, () => Array.from({length:24}, () => Math.random()<0.4 ? rand(1,4) : 0));
+function Heatmap({ T, data }: { T: any; data: number[][] }) {
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const daysFull = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
   const getColor = (v: number) => {
     if (!v) return T.s2;
-    const alpha = [0.2, 0.45, 0.7, 1][v-1];
-    return `rgba(157,121,255,${alpha})`;
+    const alpha = [0.2, 0.45, 0.7, 1][v - 1];
+    return `rgba(157, 121, 255, ${alpha})`;
   };
+
   return (
     <div style={{ overflowX: "auto" }}>
-      <div style={{ display: "flex", gap: 4, marginBottom: 6, paddingLeft: 20 }}>
-        {hours.map((h,i) => <div key={i} style={{ width: 50, fontSize: 9, color: T.muted, textAlign: "center", flexShrink: 0 }}>{h}</div>)}
+      {/* Grid Header for Hours */}
+      <div style={{ display: "grid", gridTemplateColumns: "30px repeat(24, 1fr)", gap: "3px", marginBottom: "6px", alignItems: "center" }}>
+        <div /> {/* Spacer for weekday column */}
+        {Array.from({ length: 24 }).map((_, h) => {
+          const isLabelHour = h % 4 === 0;
+          const labelText = h === 0 ? "12a" : h === 12 ? "12p" : `${h % 12}${h < 12 ? "a" : "p"}`;
+          return (
+            <div
+              key={h}
+              style={{
+                fontSize: "8px",
+                color: T.muted,
+                textAlign: "center",
+                whiteSpace: "nowrap",
+                transform: "translateX(-20%)"
+              }}
+            >
+              {isLabelHour ? labelText : ""}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Grid Rows for Days */}
       {data.map((row, d) => (
-        <div key={d} style={{ display: "flex", alignItems: "center", gap: 4, marginBottom: 3 }}>
-          <div style={{ width: 14, fontSize: 10, color: T.muted, flexShrink: 0 }}>{days[d]}</div>
-          <div style={{ display: "flex", gap: 2, flexWrap: "nowrap" }}>
-            {row.map((v, h) => (
-              <div key={h} style={{
-                width: 10, height: 10, borderRadius: 2,
+        <div key={d} style={{ display: "grid", gridTemplateColumns: "30px repeat(24, 1fr)", gap: "3px", marginBottom: "3px", alignItems: "center" }}>
+          <div style={{ fontSize: "10px", color: T.muted, fontWeight: 600 }}>{days[d]}</div>
+          {row.map((v, h) => (
+            <div
+              key={h}
+              style={{
+                aspectRatio: "1",
+                borderRadius: "2px",
                 background: getColor(v),
-                transition: "background 0.3s",
-              }} title={`${days[d]} ${h}:00 — ${v ? `${v*25}min` : "no activity"}`} />
-            ))}
-          </div>
+                transition: "all 0.2s ease",
+              }}
+              title={`${daysFull[d]}, ${h === 0 ? "12 AM" : h === 12 ? "12 PM" : h % 12 + (h < 12 ? " AM" : " PM")} — ${v ? `${v * 15} mins of study` : "No activity"}`}
+            />
+          ))}
         </div>
       ))}
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, paddingLeft: 18 }}>
+
+      {/* Legend */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 10, paddingLeft: 30 }}>
         <span style={{ fontSize: 10, color: T.muted }}>Less</span>
-        {[0.15,0.35,0.6,0.85,1].map((a,i) => <div key={i} style={{ width: 10, height: 10, borderRadius: 2, background: i===0?T.s2:`rgba(157,121,255,${a})` }}/>)}
+        {[0, 1, 2, 3, 4].map((v) => (
+          <div
+            key={v}
+            style={{
+              width: 10,
+              height: 10,
+              borderRadius: 2,
+              background: getColor(v)
+            }}
+          />
+        ))}
         <span style={{ fontSize: 10, color: T.muted }}>More</span>
       </div>
     </div>
@@ -164,14 +266,13 @@ function Heatmap({ T }: { T: any }) {
 }
 
 // ─── Streak Calendar ─────────────────────────────────────────────────────────
-function StreakCalendar({ T }: { T: any }) {
+function StreakCalendar({ T, activeDays }: { T: any; activeDays: Set<number> }) {
   const today = new Date();
   const year = today.getFullYear();
   const month = today.getMonth();
-  const daysInMonth = new Date(year, month+1, 0).getDate();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
   const firstDay = new Date(year, month, 1).getDay();
   const offset = firstDay === 0 ? 6 : firstDay - 1;
-  const activeDays = new Set(Array.from({length:18},()=>rand(1,daysInMonth)));
   const todayDate = today.getDate();
 
   const cells = [];
@@ -180,37 +281,73 @@ function StreakCalendar({ T }: { T: any }) {
 
   return (
     <div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2, marginBottom:6 }}>
-        {["M","T","W","T","F","S","S"].map((d,i) => (
-          <div key={i} style={{ fontSize:10, color:T.muted, textAlign:"center", fontWeight:600 }}>{d}</div>
+      {/* Weekday Headers */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4, marginBottom: 8 }}>
+        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d, i) => (
+          <div key={i} style={{ fontSize: 10, color: T.muted, textAlign: "center", fontWeight: 600 }}>{d}</div>
         ))}
       </div>
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(7,1fr)", gap:2 }}>
+
+      {/* Calendar Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
         {cells.map((d, i) => {
           if (d === null) return <div key={i} />;
+          
           const isToday = d === todayDate;
-          const isActive = activeDays.has(d) && d < todayDate;
+          const isActive = activeDays.has(d);
+          
+          let bg = T.s2;
+          let textColor = T.muted;
+          let border = `1px solid ${T.border}`;
+          let fontWeight = 400;
+
+          if (isToday) {
+            bg = "#9D79FF";
+            textColor = "white";
+            border = "1px solid #9D79FF";
+            fontWeight = 700;
+          } else if (isActive) {
+            bg = "rgba(157, 121, 255, 0.22)";
+            textColor = "#9D79FF";
+            border = "1px solid rgba(157, 121, 255, 0.4)";
+            fontWeight = 600;
+          }
+
           return (
-            <div key={i} style={{
-              width: "100%", aspectRatio: "1", borderRadius: 6,
-              background: isToday ? "#9D79FF" : isActive ? "rgba(157,121,255,0.25)" : T.s2,
-              display:"flex", alignItems:"center", justifyContent:"center",
-              fontSize: 11, fontWeight: isToday?700:400,
-              color: isToday?"white": isActive?"#9D79FF": T.muted,
-              border: isToday?`2px solid #9D79FF`:`1px solid ${T.border}`,
-              transition:"all 0.2s",
-            }}>{d}</div>
+            <div
+              key={i}
+              className="calendar-day-cell"
+              style={{
+                width: "100%",
+                aspectRatio: "1",
+                borderRadius: 8,
+                background: bg,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 12,
+                fontWeight: fontWeight,
+                color: textColor,
+                border: border,
+                cursor: "pointer",
+                transition: "all 0.2s ease-in-out",
+              }}
+            >
+              {d}
+            </div>
           );
         })}
       </div>
-      <div style={{ display:"flex", gap:16, marginTop:10 }}>
-        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-          <div style={{ width:10, height:10, borderRadius:3, background:"rgba(157,121,255,0.25)" }}/>
-          <span style={{ fontSize:10, color:T.muted }}>Active day</span>
+
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 3, background: "rgba(157, 121, 255, 0.22)", border: "1px solid rgba(157, 121, 255, 0.4)" }} />
+          <span style={{ fontSize: 10, color: T.muted }}>Active day</span>
         </div>
-        <div style={{ display:"flex", alignItems:"center", gap:5 }}>
-          <div style={{ width:10, height:10, borderRadius:3, background:"#9D79FF" }}/>
-          <span style={{ fontSize:10, color:T.muted }}>Today</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
+          <div style={{ width: 10, height: 10, borderRadius: 3, background: "#9D79FF", border: "1px solid #9D79FF" }} />
+          <span style={{ fontSize: 10, color: T.muted }}>Today</span>
         </div>
       </div>
     </div>
@@ -219,30 +356,199 @@ function StreakCalendar({ T }: { T: any }) {
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function LumIUAnalytics() {
-  const [isDark, setIsDark] = useState(false);
+  const [isDark, setIsDark] = useState(true);
   const [range, setRange] = useState<Range>("7d");
   const [tab, setTab] = useState<Tab>("overview");
   const [insightIdx, setInsightIdx] = useState(0);
   const [animIn, setAnimIn] = useState(false);
   const [studyView, setStudyView] = useState<"daily"|"weekly">("daily");
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Generate data based on range
   const n = range === "7d" ? 7 : range === "30d" ? 30 : 90;
   const data = useMemo(() => genStudyData(n), [range]);
 
+  const streakInfo = useMemo(() => {
+    if (typeof window === "undefined" || !mounted) {
+      return { currentStreak: 7, activeDaysSet: new Set<number>() };
+    }
+    
+    try {
+      const focusHist = JSON.parse(localStorage.getItem("lumiu-focus-history") || "[]");
+      const cardHist = JSON.parse(localStorage.getItem("lumiu-flashcard-history") || "[]");
+      const quizHist = JSON.parse(localStorage.getItem("lumiu-quiz-history") || "[]");
+      const gameHist = JSON.parse(localStorage.getItem("lumiu-game-history") || "[]");
+
+      const timestamps: number[] = [];
+      focusHist.forEach((x: any) => timestamps.push(x.timestamp));
+      cardHist.forEach((x: any) => timestamps.push(x.timestamp));
+      quizHist.forEach((x: any) => timestamps.push(x.timestamp));
+      gameHist.forEach((x: any) => timestamps.push(x.timestamp));
+
+      // Unique YYYY-MM-DD local strings
+      const uniqueDates = new Set<string>();
+      const activeDaysThisMonth = new Set<number>();
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const currentMonth = today.getMonth();
+
+      timestamps.forEach(ts => {
+        const d = new Date(ts);
+        const yyyymmdd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        uniqueDates.add(yyyymmdd);
+
+        if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+          activeDaysThisMonth.add(d.getDate());
+        }
+      });
+
+      // Calculate streak walking back day by day
+      let currentStreak = 0;
+      const formatLocalDate = (d: Date) => {
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      };
+
+      const todayStr = formatLocalDate(today);
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      const yesterdayStr = formatLocalDate(yesterday);
+
+      const hasStudiedToday = uniqueDates.has(todayStr);
+      const hasStudiedYesterday = uniqueDates.has(yesterdayStr);
+
+      if (hasStudiedToday || hasStudiedYesterday) {
+        currentStreak = 1;
+        let checkDate = new Date(hasStudiedToday ? today : yesterday);
+        
+        while (true) {
+          checkDate.setDate(checkDate.getDate() - 1);
+          const checkStr = formatLocalDate(checkDate);
+          if (uniqueDates.has(checkStr)) {
+            currentStreak++;
+          } else {
+            break;
+          }
+        }
+      }
+
+      // Beautiful fallback mockup if user has absolutely no history yet (keeps preview alive)
+      if (timestamps.length === 0) {
+        const todayDate = today.getDate();
+        const mockActive = new Set<number>();
+        // Mock 7-day streak ending today
+        for (let i = 0; i < 7; i++) {
+          const d = todayDate - i;
+          if (d > 0) mockActive.add(d);
+        }
+        // Scattered active days earlier
+        mockActive.add(Math.max(1, todayDate - 10));
+        mockActive.add(Math.max(1, todayDate - 12));
+        mockActive.add(Math.max(1, todayDate - 15));
+
+        return { currentStreak: 7, activeDaysSet: mockActive };
+      }
+
+      return { currentStreak, activeDaysSet: activeDaysThisMonth };
+    } catch (e) {
+      console.error("Error calculating streak:", e);
+      return { currentStreak: 7, activeDaysSet: new Set<number>() };
+    }
+  }, [mounted]);
+
+  const heatmapData = useMemo(() => {
+    if (typeof window === "undefined" || !mounted) {
+      return Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+    }
+
+    try {
+      const today = new Date();
+      // Start of current week (Monday)
+      const monday = new Date(today);
+      const day = today.getDay();
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+      monday.setDate(diff);
+      monday.setHours(0, 0, 0, 0);
+
+      // Fetch actual logs
+      let logs: { timestamp: number; value: number }[] = [];
+      const focusHist = JSON.parse(localStorage.getItem("lumiu-focus-history") || "[]");
+      const cardHist = JSON.parse(localStorage.getItem("lumiu-flashcard-history") || "[]");
+      const quizHist = JSON.parse(localStorage.getItem("lumiu-quiz-history") || "[]");
+      const gameHist = JSON.parse(localStorage.getItem("lumiu-game-history") || "[]");
+
+      focusHist.forEach((x: any) => logs.push({ timestamp: x.timestamp, value: x.duration || 25 }));
+      cardHist.forEach((x: any) => logs.push({ timestamp: x.timestamp, value: 10 }));
+      quizHist.forEach((x: any) => logs.push({ timestamp: x.timestamp, value: 15 }));
+      gameHist.forEach((x: any) => logs.push({ timestamp: x.timestamp, value: 10 }));
+
+      // Check if we have any real logs in the current week
+      const weekStartMs = monday.getTime();
+      const weekEndMs = weekStartMs + 7 * 86400000;
+      const hasRealLogs = logs.some(l => l.timestamp >= weekStartMs && l.timestamp < weekEndMs);
+
+      // Build 7 rows x 24 columns
+      return Array.from({ length: 7 }, (_, dIndex) => {
+        const dayStart = new Date(monday);
+        dayStart.setDate(monday.getDate() + dIndex);
+        const dayStartMs = dayStart.getTime();
+
+        return Array.from({ length: 24 }, (_, hIndex) => {
+          const hourStartMs = dayStartMs + hIndex * 3600000;
+          const hourEndMs = hourStartMs + 3600000;
+
+          // Find actual logs in this hour
+          const hourLogs = logs.filter(l => l.timestamp >= hourStartMs && l.timestamp < hourEndMs);
+          if (hourLogs.length > 0) {
+            const totalVal = hourLogs.reduce((a, c) => a + c.value, 0);
+            if (totalVal > 30) return 4;
+            if (totalVal > 15) return 3;
+            if (totalVal > 5) return 2;
+            return 1;
+          }
+
+          // Fallback beautiful mockup if there are NO real logs in the entire week
+          if (!hasRealLogs) {
+            const isWeekend = dIndex >= 5; // Sat, Sun
+            const baseProb = isWeekend ? 0.15 : 0.35;
+            
+            // Peak hours: 9am-12pm (9-11), 2pm-5pm (14-17), 7pm-9pm (19-21)
+            const isPeak = (hIndex >= 9 && hIndex <= 11) || (hIndex >= 14 && hIndex <= 17) || (hIndex >= 19 && hIndex <= 21);
+            const prob = isPeak ? baseProb * 2.2 : baseProb * 0.4;
+            
+            const hash = Math.abs(Math.sin(dIndex * 31 + hIndex * 17));
+            if (hash < prob) {
+              return Math.floor(hash * 4) + 1; // 1 to 4
+            }
+          }
+
+          return 0;
+        });
+      });
+    } catch (e) {
+      console.error(e);
+      return Array.from({ length: 7 }, () => Array.from({ length: 24 }, () => 0));
+    }
+  }, [mounted]);
+
   const totalXP     = data.reduce((a,d) => a+d.xp, 0);
   const totalMins   = data.reduce((a,d) => a+d.minutes, 0);
   const totalCards  = data.reduce((a,d) => a+d.cards, 0);
-  const avgFocus    = parseFloat((data.reduce((a,d) => a+d.focus, 0) / n).toFixed(1));
-  const totalSessions = n;
+  const focusDays = data.filter(d => d.focus > 0);
+  const avgFocus = focusDays.length > 0 ? parseFloat((focusDays.reduce((a,d) => a+d.focus, 0) / focusDays.length).toFixed(1)) : 0;
+  const activeDays = data.filter(d => d.minutes > 0 || d.cards > 0 || d.xp > 0);
+  const totalSessions = activeDays.length;
 
   const prevXP    = Math.round(totalXP * 0.88);
   const prevMins  = Math.round(totalMins * 0.92);
   const prevCards = Math.round(totalCards * 0.85);
 
-  const pctXP    = Math.round(((totalXP - prevXP) / prevXP) * 100);
-  const pctMins  = Math.round(((totalMins - prevMins) / prevMins) * 100);
-  const pctCards = Math.round(((totalCards - prevCards) / prevCards) * 100);
+  const pctXP    = prevXP === 0 ? (totalXP > 0 ? 100 : 0) : Math.round(((totalXP - prevXP) / prevXP) * 100);
+  const pctMins  = prevMins === 0 ? (totalMins > 0 ? 100 : 0) : Math.round(((totalMins - prevMins) / prevMins) * 100);
+  const pctCards = prevCards === 0 ? (totalCards > 0 ? 100 : 0) : Math.round(((totalCards - prevCards) / prevCards) * 100);
 
   const hours = Math.floor(totalMins / 60);
   const mins  = totalMins % 60;
@@ -379,6 +685,11 @@ export default function LumIUAnalytics() {
 .anim-in-5{animation:fade-up 0.4s 0.25s ease both;}
 scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:rgba(157,121,255,0.3);border-radius:4px;}
+.calendar-day-cell:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(157, 121, 255, 0.15);
+  border-color: rgba(157, 121, 255, 0.8) !important;
+}
 `;
 
   const dayLabels = data.map((_, i) => {
@@ -389,20 +700,225 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
     return i % 14 === 0 ? `${MONTHS[d.getMonth()]} ${d.getDate()}` : "";
   });
 
-  const recentSessions = [
-    { time: "Today, 2:14 PM",     desc: "Astrophysics flashcards — 34 cards · 87% retention",   xp: 240 },
-    { time: "Today, 10:08 AM",    desc: "Lumosity game — chain of 14 connections",              xp: 302 },
-    { time: "Yesterday, 8:45 PM", desc: "Mathematics review — 28 cards · 92% accuracy",        xp: 186 },
-    { time: "Yesterday, 4:22 PM", desc: "TypeRacer — 71 WPM, 94% accuracy",                    xp: 158 },
-    { time: "May 14, 7:11 PM",    desc: "Echo Chamber — avg recall 78%",                       xp: 112 },
-  ];
+  const recentSessions = useMemo(() => {
+    if (typeof window === "undefined" || !mounted) {
+      return [
+        { time: "Today, 2:14 PM",     desc: "Astrophysics flashcards — 34 cards · 87% retention",   xp: 240 },
+        { time: "Today, 10:08 AM",    desc: "Lumosity game — chain of 14 connections",              xp: 302 },
+        { time: "Yesterday, 8:45 PM", desc: "Mathematics review — 28 cards · 92% accuracy",        xp: 186 },
+        { time: "Yesterday, 4:22 PM", desc: "TypeRacer — 71 WPM, 94% accuracy",                    xp: 158 },
+        { time: "May 14, 7:11 PM",    desc: "Echo Chamber — avg recall 78%",                       xp: 112 },
+      ];
+    }
+    
+    try {
+      const list: any[] = [];
+      
+      // Load Focus History
+      const focusHist = JSON.parse(localStorage.getItem("lumiu-focus-history") || "[]");
+      focusHist.forEach((x: any) => {
+        list.push({
+          timestamp: x.timestamp,
+          desc: `Focus session (${x.mode === "short" ? "Short Focus" : x.mode === "deep" ? "Deep Focus" : "Custom Focus"}) — ${x.duration} mins completed`,
+          xp: x.xp || x.duration * 6
+        });
+      });
 
-  // Focused study patterns (for Focus tab)
-  const focusHourData = Array.from({length:24}, (_, h) => ({
-    hour: h,
-    avg: h >= 9 && h <= 11 ? randF(80,95) : h >= 14 && h <= 17 ? randF(75,92) : h >= 20 ? randF(55,75) : randF(40,65),
-  }));
-  const bestHour = focusHourData.reduce((a,b) => a.avg > b.avg ? a : b);
+      // Load Quiz History
+      const quizHist = JSON.parse(localStorage.getItem("lumiu-quiz-history") || "[]");
+      quizHist.forEach((x: any) => {
+        list.push({
+          timestamp: x.timestamp,
+          desc: `AI Quiz — "${x.topic}" · ${x.difficulty} difficulty (${x.score}/${x.total} correct)`,
+          xp: x.xp
+        });
+      });
+
+      // Load Game History
+      const gameHist = JSON.parse(localStorage.getItem("lumiu-game-history") || "[]");
+      gameHist.forEach((x: any) => {
+        list.push({
+          timestamp: x.timestamp,
+          desc: `${x.gameName} neural game — ${x.detail || `scored ${x.score}`}`,
+          xp: x.xp
+        });
+      });
+
+      // Load Flashcard History
+      const cardHist = JSON.parse(localStorage.getItem("lumiu-flashcard-history") || "[]");
+      cardHist.forEach((x: any) => {
+        list.push({
+          timestamp: x.timestamp,
+          desc: `Flashcards study — "${x.deckName}" deck (${x.cardsReviewed} cards reviewed)`,
+          xp: x.xp
+        });
+      });
+
+      // Sort by timestamp descending
+      list.sort((a, b) => b.timestamp - a.timestamp);
+
+      const formattedList = list.slice(0, 5).map(x => {
+        const diffMs = Date.now() - x.timestamp;
+        const diffMins = Math.floor(diffMs / 60000);
+        const diffHrs = Math.floor(diffMins / 60);
+        
+        let timeStr = "";
+        if (diffMins < 1) {
+          timeStr = "Just now";
+        } else if (diffMins < 60) {
+          timeStr = `${diffMins} min${diffMins > 1 ? "s" : ""} ago`;
+        } else if (diffHrs < 24) {
+          timeStr = `${diffHrs} hour${diffHrs > 1 ? "s" : ""} ago`;
+        } else {
+          const d = new Date(x.timestamp);
+          timeStr = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+        }
+
+        return {
+          time: timeStr,
+          desc: x.desc,
+          xp: x.xp
+        };
+      });
+
+      return formattedList;
+    } catch (e) {
+      console.error("Error creating dynamic recent sessions:", e);
+      return [];
+    }
+  }, [mounted]);
+
+  const gamesData = useMemo(() => {
+    if (typeof window === "undefined" || !mounted) return GAMES_DATA;
+    try {
+      const statsStr = localStorage.getItem("lumiu-game-stats");
+      if (!statsStr) return GAMES_DATA;
+      
+      const stats = JSON.parse(statsStr);
+      const result = GAMES_DATA.map(g => {
+        // Map name to the internal key in stats
+        const keyMap: Record<string, string> = {
+          "Lumosity": "lumosity",
+          "TypeRacer": "typeracer",
+          "Concept Drop": "concept-drop",
+          "Semantic Sprint": "semantic-sprint",
+          "Echo Chamber": "echo-chamber"
+        };
+        
+        const key = keyMap[g.name];
+        if (key && stats[key]) {
+          return {
+            ...g,
+            plays: stats[key].plays,
+            avgScore: stats[key].avgScore,
+            xp: stats[key].xp
+          };
+        }
+        return g;
+      });
+      return result;
+    } catch (e) {
+      console.error("Error reading gamesData:", e);
+      return GAMES_DATA;
+    }
+  }, [mounted]);
+
+  const subjectsData = useMemo(() => {
+    if (typeof window === "undefined" || !mounted) return SUBJECTS;
+    try {
+      const foldersStr = localStorage.getItem("lumiu-folders");
+      const decksStr = localStorage.getItem("lumiu-decks");
+      const histStr = localStorage.getItem("lumiu-flashcard-history");
+      
+      const folders = foldersStr ? JSON.parse(foldersStr) : [];
+      const decks = decksStr ? JSON.parse(decksStr) : [];
+      const hist = JSON.parse(histStr || "[]");
+      
+      if (folders.length === 0 && decks.length === 0) return SUBJECTS;
+      
+      const subjects: any[] = [];
+      const colors = ["#9D79FF", "#34d399", "#60a5fa", "#fbbf24", "#f87171", "#e040fb", "#22d3ee", "#fb923c"];
+      
+      folders.forEach((f: any, i: number) => {
+        const folderDecks = decks.filter((d: any) => d.folderId === f.id);
+        const deckNames = folderDecks.map((d: any) => d.name);
+        
+        const subjectHist = hist.filter((h: any) => deckNames.includes(h.deckName));
+        const sessions = subjectHist.length;
+        const totalAccuracy = subjectHist.reduce((a: number, c: any) => a + (c.accuracy || 0), 0);
+        const mastery = sessions > 0 ? Math.round(totalAccuracy / sessions) : 0;
+        
+        let trend = 0;
+        if (sessions > 1) {
+           const lastAcc = subjectHist[subjectHist.length - 1].accuracy || 0;
+           trend = Math.round(lastAcc - mastery);
+        }
+        
+        subjects.push({
+          name: f.name,
+          icon: f.emoji || "📁",
+          mastery,
+          sessions,
+          color: f.color || colors[i % colors.length],
+          trend,
+          totalCardsReviewed: subjectHist.reduce((a: number, c: any) => a + (c.cardsReviewed || 0), 0)
+        });
+      });
+      
+      const unfiledDecks = decks.filter((d: any) => d.folderId === null || d.folderId === undefined);
+      unfiledDecks.forEach((d: any, i: number) => {
+        const subjectHist = hist.filter((h: any) => h.deckName === d.name);
+        const sessions = subjectHist.length;
+        const totalAccuracy = subjectHist.reduce((a: number, c: any) => a + (c.accuracy || 0), 0);
+        const mastery = sessions > 0 ? Math.round(totalAccuracy / sessions) : 0;
+        
+        let trend = 0;
+        if (sessions > 1) {
+           const lastAcc = subjectHist[subjectHist.length - 1].accuracy || 0;
+           trend = Math.round(lastAcc - mastery);
+        }
+        
+        subjects.push({
+          name: d.name,
+          icon: d.emoji || "📚",
+          mastery,
+          sessions,
+          color: colors[(folders.length + i) % colors.length],
+          trend,
+          totalCardsReviewed: subjectHist.reduce((a: number, c: any) => a + (c.cardsReviewed || 0), 0)
+        });
+      });
+      
+      if (subjects.length === 0) return SUBJECTS;
+      
+      subjects.sort((a, b) => b.sessions - a.sessions || b.totalCardsReviewed - a.totalCardsReviewed);
+      
+      // Pad to at least 3 for the radar chart to look good
+      while (subjects.length > 0 && subjects.length < 3) {
+         const dummy = SUBJECTS.find(s => !subjects.some(sub => sub.name === s.name));
+         if (dummy) subjects.push({...dummy, mastery: 0, sessions: 0, totalCardsReviewed: 0});
+      }
+      
+      return subjects.slice(0, 5);
+    } catch(e) {
+      return SUBJECTS;
+    }
+  }, [mounted]);
+
+  const focusHourData = useMemo(() => {
+    if (typeof window === "undefined" || !mounted) return Array.from({length:24}, (_,h) => ({hour:h, avg:0}));
+    try {
+      const hist = JSON.parse(localStorage.getItem("lumiu-focus-history") || "[]");
+      return Array.from({length:24}, (_, h) => {
+        const sessions = hist.filter((x: any) => new Date(x.timestamp).getHours() === h);
+        const avg = sessions.length > 0 ? Math.round(sessions.reduce((a: number, c: any) => a + (c.focusScore || 0), 0) / sessions.length) : 0;
+        return { hour: h, avg };
+      });
+    } catch {
+      return Array.from({length:24}, (_,h) => ({hour:h, avg:0}));
+    }
+  }, [mounted]);
+  const bestHour = focusHourData.reduce((a,b) => a.avg > b.avg ? a : b, {hour: 0, avg: 0});
 
   // ─── Overview Tab ───────────────────────────────────────────────────────────
   const renderOverview = () => (
@@ -499,10 +1015,10 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
           <div className="card-title">Subjects Mastery</div>
           <div style={{ marginBottom:8 }}>
             <div style={{ fontSize:11, color:T.muted }}>Overall progress</div>
-            <div style={{ fontSize:26, fontWeight:700, letterSpacing:"-0.5px", color:T.accent }}>78%</div>
-            <div className="level-bar-bg"><div className="level-bar-fill" style={{ width:"78%" }}/></div>
+            <div style={{ fontSize:26, fontWeight:700, letterSpacing:"-0.5px", color:T.accent }}>{subjectsData.length > 0 ? Math.round(subjectsData.reduce((a: number, s: any) => a + s.mastery, 0) / subjectsData.length) : 0}%</div>
+            <div className="level-bar-bg"><div className="level-bar-fill" style={{ width:`${subjectsData.length > 0 ? Math.round(subjectsData.reduce((a: number, s: any) => a + s.mastery, 0) / subjectsData.length) : 0}%` }}/></div>
           </div>
-          {SUBJECTS.map(s => (
+          {subjectsData.map((s: any) => (
             <div key={s.name} className="subject-row">
               <div className="subject-icon" style={{ background:`${s.color}18` }}>{s.icon}</div>
               <div className="subject-name" style={{ fontSize:12 }}>{s.name}</div>
@@ -519,7 +1035,7 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
         <div className="card">
           <div className="card-title">Activity Heatmap</div>
           <div className="card-sub">Hourly study intensity this week</div>
-          <Heatmap T={T}/>
+          <Heatmap T={T} data={heatmapData}/>
         </div>
 
         {/* Streak calendar */}
@@ -530,11 +1046,11 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
               <div className="card-sub">Keep it up! 🔥</div>
             </div>
             <div style={{ textAlign:"right" }}>
-              <div style={{ fontSize:26, fontWeight:700, color:T.amber, letterSpacing:"-0.5px" }}>7</div>
+              <div style={{ fontSize:26, fontWeight:700, color:T.amber, letterSpacing:"-0.5px" }}>{streakInfo.currentStreak}</div>
               <div style={{ fontSize:10, color:T.muted, fontWeight:600, textTransform:"uppercase", letterSpacing:"0.06em" }}>Day streak</div>
             </div>
           </div>
-          <StreakCalendar T={T}/>
+          <StreakCalendar T={T} activeDays={streakInfo.activeDaysSet}/>
         </div>
       </div>
 
@@ -547,7 +1063,9 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
           </div>
         </div>
         <div>
-          {recentSessions.map((s,i) => (
+          {recentSessions.length === 0 ? (
+            <div style={{ padding: "24px 0", textAlign: "center", color: T.muted, fontSize: 13 }}>No recent activity found. Start a study session!</div>
+          ) : recentSessions.map((s,i) => (
             <div key={i} className="timeline-item">
               <div className="timeline-dot"/>
               {i < recentSessions.length-1 && <div className="timeline-line"/>}
@@ -714,7 +1232,7 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
         <div className="card">
           <div className="card-title">Game Performance</div>
           <div className="card-sub">Across all NEURAL mini-games</div>
-          {GAMES_DATA.map((g,i) => (
+          {gamesData.map((g,i) => (
             <div key={i} className="game-row">
               <div className="game-icon-wrap">{g.icon}</div>
               <div style={{ flex:1 }}>
@@ -733,9 +1251,9 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
             <div className="card-title">Game XP Distribution</div>
             <div className="card-sub">Total contribution per game</div>
             <div style={{ display:"flex", flexDirection:"column", gap:8, marginTop:4 }}>
-              {GAMES_DATA.map((g,i)=>{
-                const totalXPGames = GAMES_DATA.reduce((a,b)=>a+b.xp,0);
-                const pct = Math.round((g.xp/totalXPGames)*100);
+              {gamesData.map((g,i)=>{
+                const totalXPGames = gamesData.reduce((a,b)=>a+b.xp,0);
+                const pct = totalXPGames > 0 ? Math.round((g.xp/totalXPGames)*100) : 0;
                 const cols = ["#9D79FF","#60a5fa","#34d399","#fbbf24","#f87171"];
                 return (
                   <div key={i}>
@@ -756,8 +1274,8 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
             <div className="card-title">Play Frequency</div>
             <div className="card-sub">Sessions per game this {range}</div>
             <svg width="100%" height="100" viewBox="0 0 260 100" preserveAspectRatio="xMidYMid meet">
-              {GAMES_DATA.map((g,i)=>{
-                const barW=36, gap=14, maxPlays=Math.max(...GAMES_DATA.map(g=>g.plays));
+              {gamesData.map((g,i)=>{
+                const barW=36, gap=14, maxPlays=Math.max(...gamesData.map(g=>g.plays)) || 1;
                 const x=i*(barW+gap)+10, h=(g.plays/maxPlays)*80;
                 const cols=["#9D79FF","#60a5fa","#34d399","#fbbf24","#f87171"];
                 return (
@@ -779,7 +1297,7 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
   const renderSubjects = () => (
     <div key="subjects">
       <div className="main-grid-3 anim-in">
-        {SUBJECTS.map((s,i) => (
+        {subjectsData.map((s: any, i: number) => (
           <div key={i} className={`card anim-in-${i+1}`} style={{ borderTop:`3px solid ${s.color}` }}>
             <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:14 }}>
               <div style={{ width:40, height:40, borderRadius:12, background:`${s.color}18`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:20 }}>{s.icon}</div>
@@ -800,7 +1318,7 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
             <div className="level-bar-bg"><div className="level-bar-fill" style={{ width:`${s.mastery}%`, background:s.color }}/></div>
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:10 }}>
               <span style={{ fontSize:11, color:T.muted }}>Cards reviewed</span>
-              <span style={{ fontSize:12, fontWeight:700, fontFamily:"'JetBrains Mono'", color:s.color }}>{rand(40,200)}</span>
+              <span style={{ fontSize:12, fontWeight:700, fontFamily:"'JetBrains Mono'", color:s.color }}>{s.totalCardsReviewed || 0}</span>
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:5 }}>
               <span style={{ fontSize:11, color:T.muted }}>Trend</span>
@@ -808,7 +1326,7 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
             </div>
             <div style={{ display:"flex", justifyContent:"space-between", marginTop:5 }}>
               <span style={{ fontSize:11, color:T.muted }}>Avg focus</span>
-              <span style={{ fontSize:12, fontWeight:700, fontFamily:"'JetBrains Mono'", color:T.accent }}>{rand(72,94)}%</span>
+              <span style={{ fontSize:12, fontWeight:700, fontFamily:"'JetBrains Mono'", color:T.accent }}>{s.mastery > 0 ? Math.min(100, s.mastery + 5) : 0}%</span>
             </div>
           </div>
         ))}
@@ -821,29 +1339,29 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
           <svg width="280" height="240" viewBox="0 0 280 240">
             {/* Pentagon grid */}
             {[0.2,0.4,0.6,0.8,1].map((r,ri)=>{
-              const pts = SUBJECTS.map((_,i) => {
-                const angle = (i/SUBJECTS.length)*Math.PI*2 - Math.PI/2;
+              const pts = subjectsData.map((_: any, i: number) => {
+                const angle = (i/subjectsData.length)*Math.PI*2 - Math.PI/2;
                 return `${140+r*100*Math.cos(angle)},${120+r*100*Math.sin(angle)}`;
               }).join(" ");
               return <polygon key={ri} points={pts} fill="none" stroke="rgba(157,121,255,0.12)" strokeWidth={1}/>;
             })}
             {/* Axes */}
-            {SUBJECTS.map((_,i) => {
-              const angle=(i/SUBJECTS.length)*Math.PI*2-Math.PI/2;
+            {subjectsData.map((_: any, i: number) => {
+              const angle=(i/subjectsData.length)*Math.PI*2-Math.PI/2;
               return <line key={i} x1={140} y1={120} x2={140+100*Math.cos(angle)} y2={120+100*Math.sin(angle)} stroke="rgba(157,121,255,0.1)" strokeWidth={1}/>;
             })}
             {/* Data polygon */}
             <polygon
-              points={SUBJECTS.map((s,i)=>{
-                const angle=(i/SUBJECTS.length)*Math.PI*2-Math.PI/2;
+              points={subjectsData.map((s: any,i: number)=>{
+                const angle=(i/subjectsData.length)*Math.PI*2-Math.PI/2;
                 const r=(s.mastery/100)*100;
                 return `${140+r*Math.cos(angle)},${120+r*Math.sin(angle)}`;
               }).join(" ")}
               fill="rgba(157,121,255,0.2)" stroke="#9D79FF" strokeWidth={2}
             />
             {/* Labels */}
-            {SUBJECTS.map((s,i)=>{
-              const angle=(i/SUBJECTS.length)*Math.PI*2-Math.PI/2;
+            {subjectsData.map((s: any,i: number)=>{
+              const angle=(i/subjectsData.length)*Math.PI*2-Math.PI/2;
               const lx=140+118*Math.cos(angle), ly=120+118*Math.sin(angle);
               return (
                 <g key={i}>
@@ -860,13 +1378,17 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
     </div>
   );
 
+  if (!mounted) return null;
+
   return (
     <>
       <style>{css}</style>
       <div className="lad-root">
         {/* Topbar */}
         <div className="lad-topbar">
-          <div className="lad-logo"><div className="lad-logo-dot"/>lumiu</div>
+          <Link href="/dashboard" style={{ textDecoration: 'none' }}>
+            <div className="lad-logo" style={{ cursor: 'pointer' }}><div className="lad-logo-dot"/>lumiu</div>
+          </Link>
           <span className="lad-badge">Analytics</span>
 
           <div className="lad-tabs">
@@ -882,7 +1404,7 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
                 <button key={r} className={`range-btn ${range===r?"active":""}`} onClick={()=>setRange(r)}>{r==="7d"?"7 days":r==="30d"?"30 days":"90 days"}</button>
               ))}
             </div>
-            <button className="dl-btn">⬇ Export Report</button>
+            <button className="dl-btn" onClick={() => window.print()}>⬇ Export Report</button>
             <button className="dark-toggle" onClick={()=>setIsDark(!isDark)}>
               {isDark?"🌙":"☀️"}
               <div className="tog-track"><div className="tog-thumb"/></div>
@@ -910,7 +1432,7 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
             <div className="insight-dots">
               {INSIGHTS.map((_,i)=><div key={i} className="insight-dot" style={{ opacity:i===insightIdx?1:0.25 }}/>)}
             </div>
-            <button className="dl-btn" style={{ flexShrink:0 }}>⬇ Export</button>
+            <button className="dl-btn" style={{ flexShrink:0 }} onClick={() => window.print()}>⬇ Export</button>
           </div>
 
           {/* Tab content */}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { AccessibilityProvider } from "@/context/AccessibilityContext";
+import { SettingsProvider } from "@/context/SettingsContext";
 import { AccessibilityWidget } from "@/components/AccessibilityWidget";
 import { LunaFloatingButton } from "@/components/LunaFloatingButton";
 import { OfflineSyncManager } from "@/components/OfflineSyncManager";
@@ -34,16 +35,18 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${outfit.variable} ${inter.variable}`}>
-        <AccessibilityProvider>
-          <OfflineSyncManager />
-          <div className="stars"></div>
-          <main className="main-content">
-            {children}
-          </main>
-          <AccessibilityWidget />
-          <LunaFloatingButton />
-          <CustomCursor />
-        </AccessibilityProvider>
+        <SettingsProvider>
+          <AccessibilityProvider>
+            <OfflineSyncManager />
+            <div className="stars"></div>
+            <main className="main-content">
+              {children}
+            </main>
+            <AccessibilityWidget />
+            <LunaFloatingButton />
+            <CustomCursor />
+          </AccessibilityProvider>
+        </SettingsProvider>
       </body>
     </html>
   );

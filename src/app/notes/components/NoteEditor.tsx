@@ -206,30 +206,34 @@ export function NoteEditor({ note }: NoteEditorProps) {
       else fontSize = '12px';
     }
 
-    setToolbarState({
-      bold: editor.isActive('bold'),
-      italic: editor.isActive('italic'),
-      underline: editor.isActive('underline'),
-      strike: editor.isActive('strike'),
-      highlight: editor.isActive('highlight'),
-      subscript: editor.isActive('subscript'),
-      superscript: editor.isActive('superscript'),
-      bulletList: editor.isActive('bulletList'),
-      orderedList: editor.isActive('orderedList'),
-      taskList: editor.isActive('taskList'),
-      blockquote: editor.isActive('blockquote'),
-      code: editor.isActive('code'),
-      h1: editor.isActive('heading', { level: 1 }),
-      h2: editor.isActive('heading', { level: 2 }),
-      h3: editor.isActive('heading', { level: 3 }),
-      alignLeft: alignL,
-      alignCenter: alignC,
-      alignRight: alignR,
-      fontFamily: editor.getAttributes('textStyle').fontFamily || '',
-      fontSize: fontSize,
-      color: editor.getAttributes('textStyle').color || '#000000',
-      canUndo: editor.can().undo(),
-      canRedo: editor.can().redo(),
+    setToolbarState((prev: any) => {
+      const next = {
+        bold: editor.isActive('bold'),
+        italic: editor.isActive('italic'),
+        underline: editor.isActive('underline'),
+        strike: editor.isActive('strike'),
+        highlight: editor.isActive('highlight'),
+        subscript: editor.isActive('subscript'),
+        superscript: editor.isActive('superscript'),
+        bulletList: editor.isActive('bulletList'),
+        orderedList: editor.isActive('orderedList'),
+        taskList: editor.isActive('taskList'),
+        blockquote: editor.isActive('blockquote'),
+        code: editor.isActive('code'),
+        h1: editor.isActive('heading', { level: 1 }),
+        h2: editor.isActive('heading', { level: 2 }),
+        h3: editor.isActive('heading', { level: 3 }),
+        alignLeft: alignL,
+        alignCenter: alignC,
+        alignRight: alignR,
+        fontFamily: editor.getAttributes('textStyle').fontFamily || '',
+        fontSize: fontSize,
+        color: editor.getAttributes('textStyle').color || '#000000',
+        canUndo: editor.can().undo(),
+        canRedo: editor.can().redo(),
+      };
+      if (JSON.stringify(prev) === JSON.stringify(next)) return prev;
+      return next;
     });
   }, [editor]);
 

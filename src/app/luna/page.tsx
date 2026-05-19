@@ -96,7 +96,7 @@ export default function LunaChatPage() {
         <div style={{
             position: "fixed",
             top: 0, left: 0, right: 0, bottom: 0,
-            background: "radial-gradient(circle at 20% 0%, #2e1065, #0f172a 40%, #020617 100%)",
+            background: "radial-gradient(circle at 20% 0%, #ffffff, #f8fafc 45%, #eef2ff 100%)",
             fontFamily: "var(--font-inter), sans-serif",
             display: "flex", flexDirection: "column"
         }}>
@@ -105,9 +105,9 @@ export default function LunaChatPage() {
                 position: "fixed", top: 0, left: 0, right: 0,
                 display: "flex", alignItems: "center", justifyContent: "center",
                 padding: "16px 32px",
-                backgroundColor: "rgba(2, 6, 23, 0.6)",
+                backgroundColor: "#9D79FF",
                 backdropFilter: "blur(20px)",
-                borderBottom: "1px solid rgba(255,255,255,0.05)",
+                borderBottom: "1px solid rgba(15, 23, 42, 0.08)",
                 zIndex: 50
             }}>
                 <div style={{ width: "100%", maxWidth: "800px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -117,12 +117,12 @@ export default function LunaChatPage() {
                             style={{
                                 display: "flex", alignItems: "center", justifyContent: "center",
                                 width: "40px", height: "40px",
-                                backgroundColor: "rgba(255,255,255,0.03)",
+                                backgroundColor: "rgba(15, 23, 42, 0.04)",
                                 borderRadius: "50%",
-                                color: "rgba(255,255,255,0.8)",
+                                color: "white",
                                 textDecoration: "none",
                                 transition: "all 0.3s",
-                                border: "1px solid rgba(255,255,255,0.08)"
+                                border: "1px solid rgba(15, 23, 42, 0.08)"
                             }}
                         >
                             <ArrowLeft size={18} />
@@ -130,8 +130,8 @@ export default function LunaChatPage() {
                         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                             <div style={{ transform: "scale(0.8)", transformOrigin: "center" }}><LunaAvatar /></div>
                             <div>
-                                <h1 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "white", letterSpacing: "0.5px" }}>Luna</h1>
-                                <p style={{ margin: 0, fontSize: "12px", color: "#c084fc", fontWeight: "500" }}>AI Assistant</p>
+                                <h1 style={{ margin: 0, fontSize: "18px", fontWeight: "700", color: "#ffff", letterSpacing: "0.5px" }}>Luna</h1>
+                                <p style={{ margin: 0, fontSize: "12px", color: "#ffff", fontWeight: "500" }}>AI Assistant</p>
                             </div>
                         </div>
                     </div>
@@ -168,30 +168,41 @@ export default function LunaChatPage() {
                                 
                                 <div style={{
                                     background: msg.role === "user" 
-                                        ? "linear-gradient(135deg, #a855f7 0%, #7e22ce 100%)" 
-                                        : "rgba(30, 41, 59, 0.4)",
-                                    backdropFilter: msg.role === "user" ? "none" : "blur(12px)",
-                                    border: msg.role === "user" ? "none" : "1px solid rgba(255, 255, 255, 0.08)",
+                                        ? "#9D79FF" 
+                                        : "#ffffff",
+                                    backdropFilter: msg.role === "user" ? "none" : "blur(6px)",
+                                    border: msg.role === "user" ? "none" : "1px solid rgba(15, 23, 42, 0.08)",
                                     padding: "18px 24px",
                                     borderRadius: "24px",
                                     borderTopRightRadius: msg.role === "user" ? "4px" : "24px",
                                     borderTopLeftRadius: msg.role === "assistant" ? "4px" : "24px",
                                     borderBottomRightRadius: "24px",
                                     borderBottomLeftRadius: "24px",
-                                    color: "rgba(255, 255, 255, 0.95)",
+                                    color: msg.role === "user" ? "rgba(255, 255, 255, 0.95)" : "#0f172a",
                                     fontSize: "15px",
                                     lineHeight: "1.7",
                                     boxShadow: msg.role === "user" 
-                                        ? "0 10px 25px -5px rgba(126, 34, 206, 0.4)" 
-                                        : "0 4px 20px -2px rgba(0, 0, 0, 0.2)"
+                                        ? "0 10px 25px -5px hsla(272, 72%, 47%, 0.25)" 
+                                        : "0 4px 20px -2px rgba(15, 23, 42, 0.08)"
                                 }}>
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm]}
                                         components={{
                                             p: ({node, ...props}) => <p style={{ margin: "0 0 16px 0", whiteSpace: "pre-wrap", lineHeight: "1.7" }} {...props} />,
-                                            strong: ({node, ...props}) => <strong style={{ fontWeight: 800, color: "#ffffff", letterSpacing: "0.2px" }} {...props} />,
+                                            strong: ({node, ...props}) => (
+                                                <strong style={{ 
+                                                    fontWeight: 800, 
+                                                    color: msg.role === "user" ? "#ffffff" : "#7e22ce", 
+                                                    letterSpacing: "0.2px" 
+                                                }} {...props} />
+                                            ),
                                             em: ({node, ...props}) => <em style={{ fontStyle: "italic" }} {...props} />,
-                                            a: ({node, ...props}) => <a style={{ color: "#d8b4fe", textDecoration: "underline" }} {...props} />,
+                                            a: ({node, ...props}) => (
+                                                <a style={{ 
+                                                    color: msg.role === "user" ? "#d8b4fe" : "#7e22ce", 
+                                                    textDecoration: "underline" 
+                                                }} {...props} />
+                                            ),
                                             ul: ({node, ...props}) => <ul style={{ paddingLeft: "24px", margin: "10px 0", listStyleType: "disc" }} {...props} />,
                                             ol: ({node, ...props}) => <ol style={{ paddingLeft: "24px", margin: "10px 0", listStyleType: "decimal" }} {...props} />,
                                             li: ({node, ...props}) => <li style={{ marginBottom: "8px", lineHeight: "1.7" }} {...props} />
@@ -209,15 +220,15 @@ export default function LunaChatPage() {
                                 <LunaAvatar />
                             </div>
                             <div style={{
-                                background: "rgba(30, 41, 59, 0.4)",
+                                background: "rgba(241, 245, 249, 0.9)",
                                 backdropFilter: "blur(12px)",
-                                border: "1px solid rgba(255, 255, 255, 0.08)",
+                                border: "1px solid rgba(15, 23, 42, 0.08)",
                                 padding: "18px 24px",
                                 borderRadius: "24px", borderTopLeftRadius: "4px",
                                 display: "flex", alignItems: "center", gap: "12px",
-                                color: "rgba(255,255,255,0.6)",
+                                color: "#0f172a",
                                 fontSize: "15px",
-                                boxShadow: "0 4px 20px -2px rgba(0, 0, 0, 0.2)"
+                                boxShadow: "0 4px 20px -2px rgba(15, 23, 42, 0.08)"
                             }}>
                                 <Loader2 size={18} className="animate-spin" /> Gathering thoughts...
                             </div>
@@ -232,18 +243,18 @@ export default function LunaChatPage() {
                 position: "fixed", bottom: 0, left: 0, right: 0,
                 display: "flex", justifyContent: "center",
                 padding: "32px 24px",
-                background: "linear-gradient(to top, rgba(2,6,23, 1) 10%, rgba(2,6,23, 0) 100%)",
+                background: "linear-gradient(to top, rgba(255,255,255, 0.95) 10%, rgba(255,255,255, 0) 100%)",
                 pointerEvents: "none"
             }}>
                 <div style={{
                     width: "100%", maxWidth: "800px", pointerEvents: "auto",
                     display: "flex", alignItems: "flex-end", gap: "12px",
-                    background: "rgba(30, 41, 59, 0.6)",
+                    background: "rgba(255, 255, 255, 0.95)",
                     backdropFilter: "blur(20px)",
-                    border: "1px solid rgba(255,255,255,0.1)",
+                    border: "1px solid rgba(15, 23, 42, 0.08)",
                     borderRadius: "32px",
                     padding: "10px 10px 10px 24px",
-                    boxShadow: "0 20px 40px rgba(0,0,0,0.4)"
+                    boxShadow: "0 20px 40px rgba(15, 23, 42, 0.08)"
                 }}>
                     <textarea
                         value={input}
@@ -259,7 +270,7 @@ export default function LunaChatPage() {
                             flex: 1,
                             backgroundColor: "transparent",
                             border: "none",
-                            color: "white",
+                            color: "#0f172a",
                             padding: "14px 0",
                             outline: "none",
                             resize: "none",

@@ -18,17 +18,14 @@ export default function CustomCursor() {
         const updateMousePosition = (e: MouseEvent) => {
             cursorX.set(e.clientX);
             cursorY.set(e.clientY);
-            if (!isVisible) setIsVisible(true);
+            setIsVisible(prev => prev ? prev : true);
         };
 
         const handleMouseOver = (e: MouseEvent) => {
             const target = e.target as HTMLElement;
             if (target && target.closest) {
-                if (target.closest('button, a, input, select, textarea, [role="button"], .cursor-pointer')) {
-                    setIsHovering(true);
-                } else {
-                    setIsHovering(false);
-                }
+                const shouldHover = !!target.closest('button, a, input, select, textarea, [role="button"], .cursor-pointer');
+                setIsHovering(prev => prev === shouldHover ? prev : shouldHover);
             }
         };
 
@@ -46,7 +43,7 @@ export default function CustomCursor() {
             document.removeEventListener("mouseleave", handleMouseLeave);
             document.removeEventListener("mouseenter", handleMouseEnter);
         };
-    }, [isVisible, cursorX, cursorY]);
+    }, []);
 
     if (!isVisible) return null;
 

@@ -272,6 +272,27 @@ export function NotesProvider({ children }: { children: React.ReactNode }) {
       // Also load theme pref
       const savedTheme = localStorage.getItem('lumiu_theme') as ThemeMode | null;
       if (savedTheme) dispatch({ type: 'SET_THEME', payload: savedTheme });
+      // Check if noteId query parameter is present in URL
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryNoteId = searchParams.get('noteId');
+      
+      if (queryNoteId && stored.notes[queryNoteId]) {
+        const note = stored.notes[queryNoteId];
+        const section = stored.sections[note.sectionId];
+        if (section) {
+          dispatch({
+            type: 'TELEPORT_TO_NOTE',
+            payload: {
+              notebookId: section.notebookId,
+              folderId: section.folderId || undefined,
+              sectionId: note.sectionId,
+              noteId: queryNoteId,
+            }
+          });
+          return;
+        }
+      }
+
       // Auto-select first notebook + section + note
       const nbOrder = stored.notebookOrder;
       if (nbOrder.length > 0) {

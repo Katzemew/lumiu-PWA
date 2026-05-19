@@ -64,9 +64,27 @@ export default function AIQuizGeneratorPage() {
         stats.totalQuizzes += 1;
         stats.totalScore += finalScore;
         stats.lastDifficulty = difficulty;
-        // Approximation: normalize to 0-1 range based on quiz length
-        stats.avgScore = stats.totalScore / (stats.totalQuizzes * (quizData.length || 5));
+        const totalQs = quizData.length || 5;
+        stats.avgScore = stats.totalScore / (stats.totalQuizzes * totalQs);
         localStorage.setItem("lumiu-performance", JSON.stringify(stats));
+
+        // Central XP Reward: 50 XP per correct answer + 50 XP base completion
+        const xpEarned = finalScore * 50 + 50;
+        const currentXp = parseInt(localStorage.getItem("lumiu-xp") || "340");
+        localStorage.setItem("lumiu-xp", (currentXp + xpEarned).toString());
+
+        // Append to quiz history log
+        const historyStr = localStorage.getItem("lumiu-quiz-history") || "[]";
+        const history = JSON.parse(historyStr);
+        history.push({
+            timestamp: Date.now(),
+            topic: topic || "AI Quiz",
+            score: finalScore,
+            total: totalQs,
+            difficulty: difficulty,
+            xp: xpEarned
+        });
+        localStorage.setItem("lumiu-quiz-history", JSON.stringify(history));
     };
 
     const handleGenerate = async (e: React.FormEvent) => {

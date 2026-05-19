@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Moon, Star, BookOpen, Settings, LayoutGrid, FileText, Presentation, Layers, Zap } from "lucide-react";
+import { Moon, Star, Home, Maximize, Orbit, FileText, Presentation, Layers, Zap, UserCircle, LineChart, Settings } from "lucide-react";
 import { motion } from "framer-motion";
 import { usePathname } from "next/navigation";
 
@@ -22,17 +22,17 @@ export default function Navbar() {
                 </Link>
             </div>
 
-            <div className="flex-1 flex flex-col gap-6 w-full px-3">
-                <NavItem icon={<LayoutGrid size={24} />} href="/dashboard" label="Space" active={pathname === "/dashboard"} />
-                <NavItem icon={<BookOpen size={24} />} href="/decks" label="Library" active={pathname === "/decks"} />
-                <NavItem icon={<Moon size={24} />} href="/focus" label="Focus" active={pathname === "/focus"} />
+            <div className="flex-1 flex flex-col gap-6 w-full px-3 overflow-y-auto min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                <NavItem icon={<Home size={24} />} href="/dashboard" label="Home" active={pathname === "/dashboard"} />
+                <NavItem icon={<Moon size={24} />} href="/luna" label="Luna" active={pathname === "/luna"} />
+                <NavItem icon={<Maximize size={24} />} href="/focus" label="Focus Mode" active={pathname === "/focus"} />
+                <NavItem icon={<Orbit size={24} />} href="/galaxy" label="Gok" active={pathname === "/galaxy"} />
                 <NavItem icon={<FileText size={24} />} href="/notes" label="Notes" active={pathname === "/notes"} />
-                <NavItem icon={<Presentation size={24} />} href="/whiteboard" label="Board" active={pathname === "/whiteboard"} />
-                <NavItem icon={<Layers size={24} />} href="/flashcards" label="Cards" active={pathname === "/flashcards"} />
+                <NavItem icon={<Layers size={24} />} href="/flashcards" label="flashcards" active={pathname === "/flashcards"} />
+                <NavItem icon={<Presentation size={24} />} href="/whiteboard" label="whiteboard" active={pathname === "/whiteboard"} />
                 <NavItem icon={<Zap size={24} />} href="/gamification" label="Neural" active={pathname === "/gamification"} />
-            </div>
-
-            <div className="mt-auto w-full px-3">
+                <NavItem icon={<LineChart size={24} />} href="/dashboard/student" label="Analytics" active={pathname === "/dashboard/student"} />
+                <NavItem icon={<UserCircle size={24} />} href="/profile" label="Profile" active={pathname === "/profile"} />
                 <NavItem icon={<Settings size={24} />} href="/settings" label="Settings" active={pathname === "/settings"} />
             </div>
 

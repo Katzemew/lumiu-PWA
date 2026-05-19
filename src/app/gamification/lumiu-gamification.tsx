@@ -30,6 +30,44 @@ const PASSAGES = [
   "Mitosis is a form of cell division in which one cell divides to produce two genetically identical daughter cells. It is essential for growth, development, and tissue repair in multicellular organisms.",
 ];
 
+// ─── Study Integration Types & Database Helpers ──────────────────────────────
+interface StudySourceOption {
+  type: "default" | "deck" | "notebook";
+  id: string;
+  name: string;
+  itemCount: number;
+  emoji: string;
+  details?: any;
+}
+
+function getLumiuDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined" || !window.indexedDB) {
+      reject(new Error("IndexedDB not supported"));
+      return;
+    }
+    const request = indexedDB.open('LumiuDB', 1);
+    request.onupgradeneeded = () => {
+      if (!request.result.objectStoreNames.contains('keyval')) {
+        request.result.createObjectStore('keyval');
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+function idbGet(key: string): Promise<any> {
+  return getLumiuDB().then(db => {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('keyval', 'readonly');
+      const req = tx.objectStore('keyval').get(key);
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  });
+}
+
 const uid = () => Math.random().toString(36).slice(2, 8);
 const XP_PER_LEVEL = 200;
 const levelName = (lvl: number) => ["Cadet","Explorer","Scholar","Luminary","Starforger","Voidwalker","Nebula Sage"][Math.min(lvl - 1, 6)];
@@ -40,7 +78,112 @@ export default function LumIUGames() {
   const [game, setGame]   = useState<GameId>("hub");
   const [xp, setXp]       = useState(340);
 
-  const addXp = (amt: number) => setXp(p => p + amt);
+  // Dynamic study material states
+  const [decks, setDecks] = useState<any[]>([]);
+  const [notesStore, setNotesStore] = useState<any>(null);
+  const [activeSourceId, setActiveSourceId] = useState<string>("default");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedXp = localStorage.getItem("lumiu-xp");
+      if (storedXp) {
+        setXp(parseInt(storedXp));
+      } else {
+        localStorage.setItem("lumiu-xp", "340");
+      }
+
+      // Load Flashcards
+      const localDecks = localStorage.getItem("lumiu-decks");
+      if (localDecks) {
+        try {
+          setDecks(JSON.parse(localDecks));
+        } catch (e) {
+          console.error("Failed to parse local decks", e);
+        }
+      }
+
+      // Load Notes from localStorage first, then IndexedDB
+      const localNotes = localStorage.getItem("lumiu_notes_store");
+      if (localNotes) {
+        try {
+          setNotesStore(JSON.parse(localNotes));
+        } catch (e) {
+          console.error("Failed to parse local notes store", e);
+        }
+      }
+
+      // IndexedDB async fallback/update
+      idbGet("lumiu_notes_store").then(dbStore => {
+        if (dbStore) {
+          setNotesStore(dbStore);
+        }
+      }).catch(err => {
+        console.warn("IndexedDB load error, using localStorage fallback", err);
+      });
+    }
+  }, []);
+
+  const addXp = (amt: number, score?: number, metricDetail?: string) => {
+    setXp(p => {
+      const nextXp = p + amt;
+      localStorage.setItem("lumiu-xp", nextXp.toString());
+      return nextXp;
+    });
+
+    if (game !== "hub") {
+      const statsStr = localStorage.getItem("lumiu-game-stats") || "{}";
+      const stats = JSON.parse(statsStr);
+      
+      if (!stats[game]) {
+        const defaults: Record<string, any> = {
+          "lumosity": { plays: 34, avgScore: 87, bestScore: 18, xp: 1240, name: "Lumosity", icon: "🧠" },
+          "typeracer": { plays: 28, avgScore: 91, bestScore: 72, xp: 980, name: "TypeRacer", icon: "⌨️" },
+          "concept-drop": { plays: 41, avgScore: 76, bestScore: 14, xp: 1560, name: "Concept Drop", icon: "🎯" },
+          "semantic-sprint": { plays: 22, avgScore: 83, bestScore: 68, xp: 820, name: "Semantic Sprint", icon: "⚡" },
+          "echo-chamber": { plays: 19, avgScore: 79, bestScore: 74, xp: 700, name: "Echo Chamber", icon: "🔮" }
+        };
+        stats[game] = defaults[game] || { plays: 0, avgScore: 0, bestScore: 0, xp: 0 };
+      }
+      
+      const gStats = stats[game];
+      gStats.plays += 1;
+      gStats.xp += amt;
+      
+      const parsedScore = score !== undefined ? score : 80;
+      
+      gStats.avgScore = Math.round((gStats.avgScore * (gStats.plays - 1) + parsedScore) / gStats.plays);
+      
+      if (parsedScore > gStats.bestScore) {
+        gStats.bestScore = parsedScore;
+      }
+      
+      localStorage.setItem("lumiu-game-stats", JSON.stringify(stats));
+
+      const historyStr = localStorage.getItem("lumiu-game-history") || "[]";
+      const history = JSON.parse(historyStr);
+      
+      const gameNames: Record<string, string> = {
+        "lumosity": "Lumosity",
+        "typeracer": "TypeRacer",
+        "concept-drop": "Concept Drop",
+        "semantic-sprint": "Semantic Sprint",
+        "echo-chamber": "Echo Chamber"
+      };
+      
+      history.push({
+        timestamp: Date.now(),
+        gameId: game,
+        gameName: gameNames[game] || game,
+        score: parsedScore,
+        xp: amt,
+        detail: metricDetail || `score of ${parsedScore}`
+      });
+      
+      localStorage.setItem("lumiu-game-history", JSON.stringify(history));
+    }
+  };
+
   const isDark = theme === "dark";
   const level = Math.floor(xp / XP_PER_LEVEL) + 1;
   const xpInLevel = xp % XP_PER_LEVEL;
@@ -84,6 +227,18 @@ export default function LumIUGames() {
 .lg-logo-dot{width:7px;height:7px;border-radius:50%;background:${T.accent};box-shadow:0 0 10px ${T.accent};animation:lgpulse 2s infinite;}
 @keyframes lgpulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:0.4;transform:scale(0.8);}}
 .lg-badge{font-size:11px;padding:2px 9px;border-radius:20px;background:${T.glow};color:${T.accent};border:1px solid ${T.border};font-weight:600;}
+
+/* ── Study Source Dropdown Selector ── */
+.lg-source-selector{position:relative;margin-left:8px;z-index:100;}
+.lg-source-btn{display:flex;align-items:center;gap:8px;padding:6px 14px;border:1.5px solid ${T.border};border-radius:20px;background:${T.pill};color:${T.text};font-size:11px;font-family:'Chillax';font-weight:600;cursor:pointer;transition:all 0.2s;outline:none;}
+.lg-source-btn:hover{border-color:${T.accent};box-shadow:0 0 10px rgba(157,121,255,0.25);}
+.lg-source-badge{font-size:9px;font-weight:700;color:white;background:${T.accent};padding:1px 6px;border-radius:10px;font-family:'JetBrains Mono';}
+.lg-dropdown-menu{position:absolute;top:calc(100% + 8px);left:0;width:280px;background:${isDark?"rgba(26,26,56,0.95)":"rgba(255,255,255,0.95)"};backdrop-filter:blur(12px);border:1.5px solid ${T.border};border-radius:16px;box-shadow:0 12px 36px rgba(0,0,0,0.25);padding:10px;display:flex;flex-direction:column;gap:4px;max-height:360px;overflow-y:auto;z-index:100;}
+.lg-dropdown-header{font-size:10px;font-weight:700;text-transform:uppercase;color:${T.muted};letter-spacing:0.06em;padding:6px 10px 2px;}
+.lg-dropdown-item{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;cursor:pointer;border:1px solid transparent;background:transparent;color:${T.text};font-family:'Chillax';font-size:12px;font-weight:500;text-align:left;width:100%;transition:all 0.15s;}
+.lg-dropdown-item:hover{background:${T.s2};}
+.lg-dropdown-item.active{background:${T.glow};border-color:${T.accent};color:${T.accent};font-weight:600;}
+.lg-dropdown-divider{height:1px;background:${T.border};margin:4px 0;}
 .lg-top-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
 .lg-xp-wrap{display:flex;align-items:center;gap:8px;}
 .lg-xp-bg{width:100px;height:6px;border-radius:3px;background:${T.s3};}
@@ -253,6 +408,106 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
 ::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-thumb{background:rgba(157,121,255,0.3);border-radius:4px;}
 `;
 
+  // ─── Study Source Dynamic Compilation ──────────────────────────────────────────
+  const sources: StudySourceOption[] = [{
+    type: "default",
+    id: "default",
+    name: "Default Galaxy",
+    itemCount: CONCEPTS.length,
+    emoji: "🌌"
+  }];
+
+  decks.forEach(deck => {
+    if (deck.cards && deck.cards.length > 0) {
+      sources.push({
+        type: "deck",
+        id: `deck-${deck.id}`,
+        name: deck.name,
+        itemCount: deck.cards.length,
+        emoji: deck.emoji || "🎴",
+        details: deck
+      });
+    }
+  });
+
+  if (notesStore && notesStore.notebooks && notesStore.notes) {
+    Object.values(notesStore.notebooks).forEach((nb: any) => {
+      const nbSections = Object.values(notesStore.sections || {}).filter((s: any) => s.notebookId === nb.id);
+      const sectionIds = new Set(nbSections.map((s: any) => s.id));
+      const nbNotes = Object.values(notesStore.notes || {}).filter((n: any) => sectionIds.has(n.sectionId));
+
+      if (nbNotes.length > 0) {
+        sources.push({
+          type: "notebook",
+          id: `notebook-${nb.id}`,
+          name: nb.name,
+          itemCount: nbNotes.length,
+          emoji: nb.icon || "🗂️",
+          details: { ...nb, notes: nbNotes }
+        });
+      }
+    });
+  }
+
+  const activeSource = sources.find(s => s.id === activeSourceId) || sources[0];
+
+  let activeConcepts = CONCEPTS;
+  let activePassages = PASSAGES;
+
+  if (activeSource.type === "deck" && activeSource.details) {
+    const deck = activeSource.details;
+    activeConcepts = deck.cards.map((c: any) => {
+      const backClean = (c.back || "").replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toLowerCase();
+      const words = backClean.split(/\s+/).filter((w: string) => w.length > 4);
+      const uniqueWords = Array.from(new Set(words)) as string[];
+      const connections = [
+        ...(c.tags || []),
+        ...uniqueWords.slice(0, 5)
+      ].map(w => w.charAt(0).toUpperCase() + w.slice(1));
+
+      return {
+        term: c.front,
+        def: c.back,
+        category: deck.name,
+        connections: connections.length > 0 ? connections.slice(0, 5) : ["Recall", "Answer", "Study"]
+      };
+    });
+
+    const parsedPassages = deck.cards
+      .map((c: any) => c.back)
+      .filter((p: string) => p && p.trim().length > 15);
+    if (parsedPassages.length > 0) {
+      activePassages = parsedPassages;
+    }
+  } else if (activeSource.type === "notebook" && activeSource.details) {
+    const notebook = activeSource.details;
+    activeConcepts = notebook.notes.map((n: any) => {
+      const plainText = n.plainText || "";
+      const firstSentence = plainText.split(/[.!?]/)[0] || "Notebook note content";
+      const wordsClean = plainText.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g,"").toLowerCase();
+      const words = wordsClean.split(/\s+/).filter((w: string) => w.length > 4);
+      const uniqueWords = Array.from(new Set(words)) as string[];
+      const connections = [
+        ...(n.tags || []),
+        ...uniqueWords.slice(0, 5)
+      ].map(w => w.charAt(0).toUpperCase() + w.slice(1));
+
+      return {
+        term: n.title,
+        def: firstSentence.trim(),
+        category: "Notebook",
+        connections: connections.length > 0 ? connections.slice(0, 5) : ["Note", "Knowledge", "Context"]
+      };
+    });
+
+    const parsedPassages = notebook.notes
+      .map((n: any) => n.plainText)
+      .filter((p: string) => p && p.trim().length > 15);
+    if (parsedPassages.length > 0) {
+      activePassages = parsedPassages;
+    }
+  }
+
   const navItems: { id: GameId; icon: string; label: string; sub: string }[] = [
     { id: "hub",            icon: "🏠", label: "Game Hub",         sub: "All games" },
     { id: "lumosity",       icon: "🧠", label: "Lumosity",         sub: "Knowledge mapping" },
@@ -270,6 +525,79 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
         <div className="lg-top">
           <div className="lg-logo"><div className="lg-logo-dot"/>lumiu</div>
           <span className="lg-badge">NEURAL · Gamification</span>
+
+          {/* Study Source Selector */}
+          <div className="lg-source-selector">
+            <button className="lg-source-btn" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+              <span>{activeSource.emoji} {activeSource.name}</span>
+              <span className="lg-source-badge">{activeSource.itemCount} items</span>
+              <span style={{fontSize:9, opacity:0.6}}>{isDropdownOpen ? "▲" : "▼"}</span>
+            </button>
+            {isDropdownOpen && (
+              <div className="lg-dropdown-menu">
+                <div className="lg-dropdown-header">System Content</div>
+                <button 
+                  className={`lg-dropdown-item ${activeSourceId === "default" ? "active" : ""}`}
+                  onClick={() => { setActiveSourceId("default"); setIsDropdownOpen(false); }}
+                >
+                  <span>🌌</span>
+                  <span style={{flex:1}}>Default Galaxy</span>
+                  <span className="lg-source-badge">{CONCEPTS.length}</span>
+                </button>
+
+                {decks.some(d => d.cards && d.cards.length > 0) && (
+                  <>
+                    <div className="lg-dropdown-divider" />
+                    <div className="lg-dropdown-header">Your Flashcard Decks</div>
+                    {decks.map(deck => {
+                      if (!deck.cards || deck.cards.length === 0) return null;
+                      return (
+                        <button 
+                          key={deck.id}
+                          className={`lg-dropdown-item ${activeSourceId === `deck-${deck.id}` ? "active" : ""}`}
+                          onClick={() => { setActiveSourceId(`deck-${deck.id}`); setIsDropdownOpen(false); }}
+                        >
+                          <span>{deck.emoji || "🎴"}</span>
+                          <span style={{flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{deck.name}</span>
+                          <span className="lg-source-badge">{deck.cards.length}</span>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+
+                {notesStore && Object.values(notesStore.notebooks || {}).some((nb: any) => {
+                  const nbSections = Object.values(notesStore.sections || {}).filter((s: any) => s.notebookId === nb.id);
+                  const sectionIds = new Set(nbSections.map((s: any) => s.id));
+                  const nbNotes = Object.values(notesStore.notes || {}).filter((n: any) => sectionIds.has(n.sectionId));
+                  return nbNotes.length > 0;
+                }) && (
+                  <>
+                    <div className="lg-dropdown-divider" />
+                    <div className="lg-dropdown-header">Your Notebooks</div>
+                    {Object.values(notesStore.notebooks).map((nb: any) => {
+                      const nbSections = Object.values(notesStore.sections || {}).filter((s: any) => s.notebookId === nb.id);
+                      const sectionIds = new Set(nbSections.map((s: any) => s.id));
+                      const nbNotes = Object.values(notesStore.notes || {}).filter((n: any) => sectionIds.has(n.sectionId));
+                      if (nbNotes.length === 0) return null;
+                      return (
+                        <button 
+                          key={nb.id}
+                          className={`lg-dropdown-item ${activeSourceId === `notebook-${nb.id}` ? "active" : ""}`}
+                          onClick={() => { setActiveSourceId(`notebook-${nb.id}`); setIsDropdownOpen(false); }}
+                        >
+                          <span>{nb.icon || "🗂️"}</span>
+                          <span style={{flex:1, overflow:"hidden", textOverflow:"ellipsis", whiteSpace:"nowrap"}}>{nb.name}</span>
+                          <span className="lg-source-badge">{nbNotes.length}</span>
+                        </button>
+                      );
+                    })}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="lg-top-right">
             <div className="lg-xp-wrap">
               <span className="lg-level">Lv.{level} · {levelName(level)}</span>
@@ -305,11 +633,11 @@ scrollbar-width:thin;scrollbar-color:rgba(157,121,255,0.3) transparent;
           {/* Main */}
           <div className="lg-main">
             {game==="hub"            && <Hub T={T} isDark={isDark} setGame={setGame}/>}
-            {game==="lumosity"       && <LumosityGame T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")}/>}
-            {game==="typeracer"      && <TypeRacerGame T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")}/>}
-            {game==="concept-drop"   && <ConceptDropGame T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")}/>}
-            {game==="semantic-sprint"&& <SemanticSprint T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")}/>}
-            {game==="echo-chamber"   && <EchoChamber T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")}/>}
+            {game==="lumosity"       && <LumosityGame T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")} concepts={activeConcepts}/>}
+            {game==="typeracer"      && <TypeRacerGame T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")} passages={activePassages}/>}
+            {game==="concept-drop"   && <ConceptDropGame T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")} concepts={activeConcepts}/>}
+            {game==="semantic-sprint"&& <SemanticSprint T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")} concepts={activeConcepts}/>}
+            {game==="echo-chamber"   && <EchoChamber T={T} isDark={isDark} addXp={addXp} goBack={()=>setGame("hub")} concepts={activeConcepts}/>}
           </div>
         </div>
       </div>
@@ -360,9 +688,10 @@ function Hub({T, isDark, setGame}: {T:any; isDark:boolean; setGame:(g:GameId)=>v
 }
 
 // ─── LUMOSITY ─────────────────────────────────────────────────────────────────
-function LumosityGame({T, isDark, addXp, goBack}: any) {
+function LumosityGame({T, isDark, addXp, goBack, concepts}: any) {
   const [phase, setPhase] = useState<"intro"|"play"|"done">("intro");
-  const [concept] = useState(()=>CONCEPTS[Math.floor(Math.random()*CONCEPTS.length)]);
+  const list = concepts && concepts.length > 0 ? concepts : CONCEPTS;
+  const [concept] = useState(()=>list[Math.floor(Math.random()*list.length)]);
   const [chain, setChain] = useState<{text:string;score:number}[]>([]);
   const [input, setInput] = useState("");
   const [timeLeft, setTimeLeft] = useState(60);
@@ -378,6 +707,14 @@ function LumosityGame({T, isDark, addXp, goBack}: any) {
     },1000);
     return ()=>clearInterval(iv);
   },[phase]);
+
+  useEffect(() => {
+    if (phase === "done") {
+      const xpEarned = chain.length * 18 + (chain.length >= 5 ? 50 : 0);
+      const scoreVal = chain.length > 0 ? Math.min(100, chain.length * 12 + 20) : 0;
+      addXp(xpEarned, scoreVal, `${chain.length} connections`);
+    }
+  }, [phase]);
 
   const submit = ()=>{
     if(!input.trim()) return;
@@ -417,7 +754,6 @@ function LumosityGame({T, isDark, addXp, goBack}: any) {
 
   if(phase==="done") {
     const xpEarned = chain.length*18+(chain.length>=5?50:0);
-    addXp(xpEarned);
     return (
       <div className="game-shell">
         <div className="game-header"><button className="game-back" onClick={goBack}>←</button><div><div className="game-title">🧠 Lumosity — Complete</div></div></div>
@@ -479,10 +815,11 @@ function LumosityGame({T, isDark, addXp, goBack}: any) {
 }
 
 // ─── TYPERACER ────────────────────────────────────────────────────────────────
-function TypeRacerGame({T, isDark, addXp, goBack}: any) {
+function TypeRacerGame({T, isDark, addXp, goBack, passages}: any) {
   const [phase, setPhase] = useState<"intro"|"play"|"done">("intro");
-  const [passageIdx] = useState(()=>Math.floor(Math.random()*PASSAGES.length));
-  const passage = PASSAGES[passageIdx];
+  const list = passages && passages.length > 0 ? passages : PASSAGES;
+  const [passageIdx] = useState(()=>Math.floor(Math.random()*list.length));
+  const passage = list[passageIdx];
   const [typed, setTyped] = useState("");
   const [startTime, setStartTime] = useState(0);
   const [wpm, setWpm] = useState(0);
@@ -529,7 +866,14 @@ function TypeRacerGame({T, isDark, addXp, goBack}: any) {
       setTimeout(()=>setFlashClass(""),350);
     }
     setTyped(val);
-    if(val===passage){ setPhase("done"); const xpEarned=Math.floor(wpm*accuracy/100*0.5); addXp(xpEarned); }
+    if(val===passage){
+      setPhase("done");
+      const elapsed = startTime ? (Date.now() - startTime) / 60000 : 0.1;
+      const wordCount = passage.trim().split(/\s+/).filter(Boolean).length;
+      const finalWpm = elapsed > 0 ? Math.round(wordCount / elapsed) : 60;
+      const xpEarned = Math.floor(finalWpm * acc / 100 * 0.5) + 30;
+      addXp(xpEarned, finalWpm, `${finalWpm} WPM / ${acc}% acc`);
+    }
   };
 
   const progress = passage.length>0?Math.round((typed.length/passage.length)*100):0;
@@ -618,7 +962,7 @@ function TypeRacerGame({T, isDark, addXp, goBack}: any) {
         {/* Passage display */}
         <div className={`tr-passage-wrap ${flashClass}`}>
           <div className="tr-passage">
-            {passage.split("").map((char, i) => {
+            {passage.split("").map((char: string, i: number) => {
               let cls = "tr-char-pending";
               if(i < typed.length) cls = typed[i]===char ? "tr-char-done" : "tr-char-wrong";
               else if(i === typed.length) cls = "tr-char-cursor";
@@ -662,14 +1006,23 @@ const BLOCK_COLORS = [
   {bg:"rgba(248,113,113,0.15)",border:"#f87171",text:"#f87171"},
 ];
 
-function ConceptDropGame({T, isDark, addXp, goBack}: any) {
+function ConceptDropGame({T, isDark, addXp, goBack, concepts}: any) {
   const [phase, setPhase] = useState<"intro"|"play"|"done">("intro");
+  const list = concepts && concepts.length > 0 ? concepts : CONCEPTS;
   const [blocks, setBlocks] = useState<FallingBlock[]>([]);
   const [targetIdx, setTargetIdx] = useState(0);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [maxCombo, setMaxCombo] = useState(0);
   const [sliced, setSliced] = useState(0);
+
+  useEffect(() => {
+    if (phase === "done") {
+      const xpEarned = score + maxCombo * 5;
+      const finalScore = Math.min(100, Math.round((score / 150) * 100));
+      addXp(xpEarned, finalScore, `${sliced} sliced / ${maxCombo}x combo`);
+    }
+  }, [phase]);
   const [missed, setMissed] = useState(0);
   const [dropSpeed, setDropSpeed] = useState(1.0);
   const [timeLeft, setTimeLeft] = useState(60);
@@ -739,9 +1092,9 @@ function ConceptDropGame({T, isDark, addXp, goBack}: any) {
     } catch(e){}
   },[]);
 
-  const spawnBlock = useCallback((targetConcept: typeof CONCEPTS[0])=>{
+  const spawnBlock = useCallback((targetConcept: any)=>{
     const useTarget = Math.random()<0.45;
-    const concept = useTarget ? targetConcept : CONCEPTS[Math.floor(Math.random()*CONCEPTS.length)];
+    const concept = useTarget ? targetConcept : list[Math.floor(Math.random()*list.length)];
     const colorIdx = Math.floor(Math.random()*BLOCK_COLORS.length);
     const col = BLOCK_COLORS[colorIdx];
     const blockW = 140;
@@ -758,7 +1111,7 @@ function ConceptDropGame({T, isDark, addXp, goBack}: any) {
       color: col.bg,
       borderColor: col.border,
     };
-  },[]);
+  },[list]);
 
   useEffect(()=>{
     if(phase!=="play") return;
@@ -767,7 +1120,7 @@ function ConceptDropGame({T, isDark, addXp, goBack}: any) {
     // Spawn blocks
     const spawnIv = setInterval(()=>{
       if(phaseRef.current!=="play") return;
-      const target = CONCEPTS[targetIdx % CONCEPTS.length];
+      const target = list[targetIdx % list.length];
       setBlocks(prev=>{
         if(prev.filter(b=>b.sliceState==="idle").length >= 6) return prev;
         return [...prev, spawnBlock(target)];
@@ -820,17 +1173,18 @@ function ConceptDropGame({T, isDark, addXp, goBack}: any) {
 
   const handleSlice = (blockId:string, e: React.MouseEvent<HTMLDivElement>)=>{
     e.stopPropagation();
-    const target = CONCEPTS[targetIdx % CONCEPTS.length];
+    const target = list[targetIdx % list.length];
+    const clientX = e.clientX;
+    const clientY = e.clientY;
     setBlocks(prev=>prev.map(b=>{
       if(b.id!==blockId||b.sliceState!=="idle") return b;
       const correct = b.isTarget;
       playSlice(correct);
       // Add ripple
-      const rect = e.currentTarget.getBoundingClientRect();
       const arenaRect = arenaRef.current?.getBoundingClientRect();
       if(arenaRect){
-        const rx = e.clientX - arenaRect.left;
-        const ry = e.clientY - arenaRect.top;
+        const rx = clientX - arenaRect.left;
+        const ry = clientY - arenaRect.top;
         const rid = uid();
         setRipples(r=>[...r,{id:rid,x:rx,y:ry}]);
         setTimeout(()=>setRipples(r=>r.filter(rp=>rp.id!==rid)),600);
@@ -849,7 +1203,7 @@ function ConceptDropGame({T, isDark, addXp, goBack}: any) {
     }));
   };
 
-  const target = CONCEPTS[targetIdx % CONCEPTS.length];
+  const target = list[targetIdx % list.length];
 
   if(phase==="intro") return (
     <div className="game-shell">
@@ -873,7 +1227,6 @@ function ConceptDropGame({T, isDark, addXp, goBack}: any) {
 
   if(phase==="done"){
     const xpEarned = score + maxCombo*5;
-    addXp(xpEarned);
     return (
       <div className="game-shell">
         <div className="game-header"><button className="game-back" onClick={goBack}>←</button><div><div className="game-title">🎯 Concept Drop — Done</div></div></div>
@@ -975,7 +1328,7 @@ function ConceptDropGame({T, isDark, addXp, goBack}: any) {
 }
 
 // ─── SEMANTIC SPRINT ──────────────────────────────────────────────────────────
-function SemanticSprint({T, isDark, addXp, goBack}: any) {
+function SemanticSprint({T, isDark, addXp, goBack, concepts}: any) {
   const [phase, setPhase] = useState<"intro"|"play"|"done">("intro");
   const [round, setRound] = useState(0);
   const [score, setScore] = useState(0);
@@ -985,9 +1338,10 @@ function SemanticSprint({T, isDark, addXp, goBack}: any) {
   const [history, setHistory] = useState<{a:string;b:string;conn:string;score:number}[]>([]);
   const TOTAL_ROUNDS = 6;
 
+  const list = concepts && concepts.length > 0 ? concepts : CONCEPTS;
   const pairs = useRef(Array.from({length:TOTAL_ROUNDS},()=>{
-    const a=CONCEPTS[Math.floor(Math.random()*CONCEPTS.length)];
-    const b=CONCEPTS[Math.floor(Math.random()*CONCEPTS.length)];
+    const a=list[Math.floor(Math.random()*list.length)];
+    const b=list[Math.floor(Math.random()*list.length)];
     return {a:a.term,b:b.term};
   })).current;
 
@@ -1001,7 +1355,12 @@ function SemanticSprint({T, isDark, addXp, goBack}: any) {
   };
 
   const next = ()=>{
-    if(round+1>=TOTAL_ROUNDS){ addXp(Math.floor(score/6*0.5)); setPhase("done"); }
+    if(round+1>=TOTAL_ROUNDS){
+      const xpEarned = Math.floor(score/6*0.5) + 30;
+      const avgCloseness = Math.round(score/TOTAL_ROUNDS);
+      addXp(xpEarned, avgCloseness, `${avgCloseness}% semantic closeness`);
+      setPhase("done");
+    }
     else { setRound(r=>r+1); setInput(""); setHeatScore(0); setSubmitted(false); }
   };
 
@@ -1077,7 +1436,7 @@ function SemanticSprint({T, isDark, addXp, goBack}: any) {
 }
 
 // ─── ECHO CHAMBER ─────────────────────────────────────────────────────────────
-function EchoChamber({T, isDark, addXp, goBack}: any) {
+function EchoChamber({T, isDark, addXp, goBack, concepts}: any) {
   const [phase, setPhase] = useState<"intro"|"show"|"recall"|"score"|"done">("intro");
   const [round, setRound] = useState(0);
   const [showTime, setShowTime] = useState(4);
@@ -1086,7 +1445,9 @@ function EchoChamber({T, isDark, addXp, goBack}: any) {
   const [totalScore, setTotalScore] = useState(0);
   const [history, setHistory] = useState<{def:string;recall:string;score:number}[]>([]);
   const TOTAL_ROUNDS = 5;
-  const cards = useRef(CONCEPTS.sort(()=>Math.random()-0.5).slice(0,TOTAL_ROUNDS)).current;
+
+  const list = concepts && concepts.length > 0 ? concepts : CONCEPTS;
+  const cards = useRef([...list].sort(()=>Math.random()-0.5).slice(0,TOTAL_ROUNDS)).current;
 
   useEffect(()=>{
     if(phase!=="show") return;
@@ -1098,9 +1459,9 @@ function EchoChamber({T, isDark, addXp, goBack}: any) {
   const submitRecall = ()=>{
     if(!input.trim()) return;
     const card = cards[round];
-    const defWords = new Set(card.def.toLowerCase().split(/\s+/).filter(w=>w.length>3));
-    const recallWords = new Set(input.toLowerCase().split(/\s+/).filter(w=>w.length>3));
-    const overlap = [...recallWords].filter(w=>defWords.has(w)).length;
+    const defWords = new Set(card.def.toLowerCase().split(/\s+/).filter((w: string)=>w.length>3));
+    const recallWords = new Set(input.toLowerCase().split(/\s+/).filter((w: string)=>w.length>3));
+    const overlap = [...recallWords].filter((w: string)=>defWords.has(w)).length;
     const sc = Math.min(100,Math.floor((overlap/Math.max(defWords.size,1))*120+15+Math.random()*20));
     setHistory(h=>[...h,{def:card.def,recall:input,score:sc}]);
     setTotalScore(s=>s+sc);
@@ -1108,7 +1469,12 @@ function EchoChamber({T, isDark, addXp, goBack}: any) {
   };
 
   const next = ()=>{
-    if(round+1>=TOTAL_ROUNDS){ addXp(Math.floor(totalScore/TOTAL_ROUNDS*0.6)); setPhase("done"); }
+    if(round+1>=TOTAL_ROUNDS){
+      const xpEarned = Math.floor(totalScore/TOTAL_ROUNDS*0.6) + 30;
+      const avgRecall = Math.round(totalScore/TOTAL_ROUNDS);
+      addXp(xpEarned, avgRecall, `${avgRecall}% average recall`);
+      setPhase("done");
+    }
     else { setRound(r=>r+1); setInput(""); setShowTime(t=>Math.max(1,t-0.5)); setPhase("intro"); }
   };
 

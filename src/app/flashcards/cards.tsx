@@ -1,18 +1,18 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-type CardStatus = "new" | "learning" | "review" | "mastered";
-type ViewMode = "library" | "study" | "create" | "edit" | "ai-generate";
-type CardTheme = "nebula" | "aurora" | "void" | "pulsar" | "comet" | "supernova" | "quasar" | "stardust";
+export type CardStatus = "new" | "learning" | "review" | "mastered";
+export type ViewMode = "library" | "study" | "create" | "edit" | "ai-generate";
+export type CardTheme = "nebula" | "aurora" | "void" | "pulsar" | "comet" | "supernova" | "quasar" | "stardust";
 
-interface Flashcard {
+export interface Flashcard {
   id: string; front: string; back: string; hint?: string;
   tags: string[]; theme: CardTheme; status: CardStatus;
   easeFactor: number; interval: number; nextReview: number;
   repetitions: number; createdAt: number; order: number;
 }
-interface Deck {
+export interface Deck {
   id: string; name: string; description: string; subject: string;
   theme: CardTheme; cards: Flashcard[]; createdAt: number; emoji: string; folderId: string | null;
 }
@@ -69,10 +69,17 @@ const THEMES: Record<CardTheme,{label:string;gradient:string;accent:string;star:
 
 // ─── StarField ────────────────────────────────────────────────────────────────
 function StarField({count=40}:{count?:number}) {
-  const s = useRef(Array.from({length:count},()=>({x:Math.random()*100,y:Math.random()*100,r:0.3+Math.random()*1.1,delay:Math.random()*4,dur:2+Math.random()*3})));
+  const [stars, setStars] = useState<{x:number,y:number,r:number,delay:number,dur:number}[]>([]);
+  
+  useEffect(() => {
+    setStars(Array.from({length:count},()=>({x:Math.random()*100,y:Math.random()*100,r:0.3+Math.random()*1.1,delay:Math.random()*4,dur:2+Math.random()*3})));
+  }, [count]);
+
+  if (stars.length === 0) return null;
+
   return (
     <svg style={{position:"absolute",inset:0,width:"100%",height:"100%",pointerEvents:"none"}}>
-      {s.current.map((st,i)=>(
+      {stars.map((st,i)=>(
         <circle key={i} cx={`${st.x}%`} cy={`${st.y}%`} r={st.r} fill="white" opacity={0.35}>
           <animate attributeName="opacity" values="0.15;0.8;0.15" dur={`${st.dur}s`} begin={`${st.delay}s`} repeatCount="indefinite"/>
         </circle>
@@ -138,6 +145,55 @@ export default function LumIUFlashcards() {
   const [appTheme, setAppTheme] = useState<"dark"|"light">("dark");
   const isDark = appTheme==="dark";
 
+  // ─── Persistence & Sync ───────────────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const storedDecks = localStorage.getItem("lumiu-decks");
+      const storedFolders = localStorage.getItem("lumiu-folders");
+      if (storedDecks) setDecks(JSON.parse(storedDecks));
+      if (storedFolders) setFolders(JSON.parse(storedFolders));
+      
+      const storedTheme = localStorage.getItem("lumiu-theme");
+      if (storedTheme) setAppTheme(storedTheme as "dark"|"light");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (decks !== SEED_DECKS) {
+      localStorage.setItem("lumiu-decks", JSON.stringify(decks));
+    }
+  }, [decks]);
+
+  useEffect(() => {
+    if (folders !== SEED_FOLDERS) {
+      localStorage.setItem("lumiu-folders", JSON.stringify(folders));
+    }
+  }, [folders]);
+
+  useEffect(() => {
+    if (studyDone && activeDeck) {
+      const xpEarned = studyQueue.length * 20 + 20; // 20 XP per card + 20 completion XP
+      
+      // Central XP sync
+      const currentXp = parseInt(localStorage.getItem("lumiu-xp") || "340");
+      localStorage.setItem("lumiu-xp", (currentXp + xpEarned).toString());
+
+      // Save to flashcard history
+      const history = JSON.parse(localStorage.getItem("lumiu-flashcard-history") || "[]");
+      const totalQuality = sessionStats.again * 0 + sessionStats.hard * 1 + sessionStats.good * 3 + sessionStats.easy * 5;
+      const accuracy = studyQueue.length > 0 ? Math.round((totalQuality / (studyQueue.length * 5)) * 100) : 80;
+      
+      history.push({
+        timestamp: Date.now(),
+        deckName: activeDeck.name,
+        cardsReviewed: studyQueue.length,
+        accuracy: accuracy,
+        xp: xpEarned
+      });
+      localStorage.setItem("lumiu-flashcard-history", JSON.stringify(history));
+    }
+  }, [studyDone]);
+
   const fileRef = useRef<HTMLInputElement>(null);
   const imgRef = useRef<HTMLInputElement>(null);
 
@@ -196,10 +252,19 @@ export default function LumIUFlashcards() {
   };
 
   // ─── ai calls ─────────────────────────────────────────────────────────────
-  const callAI = async (prompt:string, maxTokens=1000) => {
-    const r = await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:maxTokens,messages:[{role:"user",content:prompt}]})});
-    const d = await r.json();
-    return JSON.parse((d.content?.[0]?.text??"[]").replace(/```json|```/g,"").trim());
+    const callAI = async (prompt:string, maxTokens=8192) => {
+    // Use server-side route to keep API key secret
+    const response = await fetch('/api/flashcards/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, maxTokens })
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      console.error('Gemini API Error:', data);
+      throw new Error(data.error || 'Failed to generate flashcards');
+    }
+    return data; // server already parses JSON array
   };
   const makeCards = (parsed:{front:string;back:string;hint:string;tags:string[]}[], startOrder=0): Flashcard[] => {
     const keys = Object.keys(THEMES) as CardTheme[];
@@ -730,46 +795,16 @@ scrollbar-width:thin;scrollbar-color:${T.border} transparent;
               <div className="mlabel">Create manually</div>
               <div className="msubtext">Type your own Q&A</div>
             </button>
-            <button className="mbtn" onClick={()=>setMethodStep("paste")}>
-              <div className="micon" style={{background:"linear-gradient(135deg,#ec4899,#f43f5e)"}}>📋</div>
-              <div className="mlabel">Paste text</div>
-              <div className="msubtext">AI extracts cards</div>
-            </button>
+
             <button className="mbtn" onClick={()=>setMethodStep("ai-topic")}>
               <div className="micon" style={{background:"linear-gradient(135deg,#06b6d4,#3b82f6)"}}>✦</div>
               <div className="mlabel">AI generate</div>
               <div className="msubtext">Describe a topic</div>
             </button>
-            <button className="mbtn" onClick={()=>imgRef.current?.click()}>
-              <div className="micon" style={{background:"linear-gradient(135deg,#10b981,#059669)"}}>🖼️</div>
-              <div className="mlabel">Select images</div>
-              <div className="msubtext">AI reads your notes</div>
-            </button>
           </div>
-          <button className="mfull" onClick={()=>fileRef.current?.click()}>
-            <div className="mficon" style={{background:"linear-gradient(135deg,#f59e0b,#d97706)"}}>📄</div>
-            <div style={{textAlign:"left"}}>
-              <div className="mlabel" style={{marginBottom:2}}>Select file</div>
-              <div className="msubtext">.pdf, .docx, .pptx — AI extracts key facts</div>
-            </div>
-          </button>
-          <input ref={fileRef} type="file" accept=".pdf,.docx,.pptx" style={{display:"none"}} onChange={()=>alert("PDF parsing needs pdf.js — wire up in production!")}/>
-          <input ref={imgRef} type="file" accept="image/*" multiple style={{display:"none"}} onChange={()=>alert("Image OCR needs tesseract.js — wire up in production!")}/>
         </>}
 
-        {methodStep==="paste"&&<>
-          <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:15}}>
-            <button className="bbtn" style={{width:30,height:30,fontSize:13}} onClick={()=>setMethodStep("pick")}>←</button>
-            <div className="mtitle" style={{margin:0}}>Paste text</div>
-          </div>
-          <textarea className="fi" rows={8} placeholder="Paste your notes or textbook excerpt — AI will extract key concepts as flashcards." value={pasteText} onChange={e=>setPasteText(e.target.value)}/>
-          <div style={{display:"flex",gap:9,marginTop:13}}>
-            <button className="btnp" style={{flex:1}} onClick={generateFromPaste} disabled={pasteLoading||!pasteText.trim()}>
-              {pasteLoading?<span style={{display:"flex",alignItems:"center",gap:7,justifyContent:"center"}}><div style={{width:13,height:13,border:"2px solid rgba(255,255,255,0.3)",borderTopColor:"white",borderRadius:"50%",animation:"spin 0.8s linear infinite"}}/>Generating...</span>:"✦ Generate Cards"}
-            </button>
-            <button className="btns" onClick={()=>setMethodStep("pick")}>Cancel</button>
-          </div>
-        </>}
+
 
         {methodStep==="ai-topic"&&<>
           <div style={{display:"flex",alignItems:"center",gap:9,marginBottom:15}}>

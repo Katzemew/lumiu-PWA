@@ -515,12 +515,12 @@ html.font-dyslexic * {
 
 
 
-html.text-size-large * {
-  font-size: 110%;
+html.text-size-large {
+  font-size: 110% !important;
 }
 
-html.text-size-xlarge * {
-  font-size: 125%;
+html.text-size-xlarge {
+  font-size: 125% !important;
 }
 
 

@@ -3,7 +3,7 @@
 // Lumiu Notes — Sidebar Component
 // =============================================
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinates, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -35,6 +35,40 @@ export function Sidebar() {
   const [createColor, setCreateColor] = useState<NoteColor>('purple');
   const [createIcon, setCreateIcon] = useState('📓');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    const savedWidth = localStorage.getItem('lumiu_sidebar_width');
+    if (savedWidth) {
+      setSidebarWidth(Math.min(Math.max(220, parseInt(savedWidth, 10)), 480));
+    }
+  }, []);
+
+  const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+    const startWidth = sidebarWidth;
+    const startX = mouseDownEvent.clientX;
+
+    const doDrag = (mouseMoveEvent: MouseEvent) => {
+      const newWidth = Math.min(Math.max(220, startWidth + (mouseMoveEvent.clientX - startX)), 480);
+      setSidebarWidth(newWidth);
+      localStorage.setItem('lumiu_sidebar_width', newWidth.toString());
+    };
+
+    const stopDrag = () => {
+      setIsResizing(false);
+      document.body.classList.remove('resizing-sidebar');
+      document.removeEventListener('mousemove', doDrag);
+      document.removeEventListener('mouseup', stopDrag);
+    };
+
+    document.body.classList.add('resizing-sidebar');
+    document.addEventListener('mousemove', doDrag);
+    document.addEventListener('mouseup', stopDrag);
+  }, [sidebarWidth]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -111,7 +145,14 @@ export function Sidebar() {
   };
 
   return (
-    <aside className={`notes-sidebar ${ui.sidebarCollapsed ? 'collapsed' : ''}`}>
+    <aside
+      className={`notes-sidebar ${ui.sidebarCollapsed ? 'collapsed' : ''} ${isResizing ? 'resizing' : ''}`}
+      style={{
+        width: ui.sidebarCollapsed ? 0 : sidebarWidth,
+        minWidth: ui.sidebarCollapsed ? 0 : sidebarWidth,
+        maxWidth: ui.sidebarCollapsed ? 0 : sidebarWidth,
+      }}
+    >
       {/* Header */}
       <div className="sidebar-header">
         <div className="sidebar-logo">🧠</div>
@@ -310,6 +351,14 @@ export function Sidebar() {
           Lumiu Notes v0.1.0
         </div>
       </div>
+
+      {/* Resize Handle */}
+      {!ui.sidebarCollapsed && (
+        <div
+          className={`sidebar-resize-handle ${isResizing ? 'active' : ''}`}
+          onMouseDown={startResizing}
+        />
+      )}
     </aside>
   );
 }

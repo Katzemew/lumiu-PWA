@@ -375,6 +375,16 @@ export default function LumIUPomodoro() {
   const [showModePanel, setShowModePanel] = useState(false);
   const [pulseRing, setPulseRing] = useState(false);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const history = JSON.parse(localStorage.getItem("lumiu-focus-history") || "[]");
+      if (history.length > 0) {
+        setSessions(history.length);
+        setTotalFocusMin(history.reduce((a: number, s: any) => a + (s.duration || 0), 0));
+      }
+    }
+  }, []);
+
   const intervalRef = useRef<number | null>(null);
 
   // ─── Derived values ───────────────────────────────────────────────────────
@@ -418,7 +428,27 @@ export default function LumIUPomodoro() {
         if (phase === "work") {
           // Work done → break
           setPhase("break");
-          setTotalFocusMin(t => t + cfg.work);
+          setTotalFocusMin(t => {
+            const nextMins = t + cfg.work;
+            
+            // Save to focus history
+            const history = JSON.parse(localStorage.getItem("lumiu-focus-history") || "[]");
+            const xpEarned = cfg.work * 6; // 6 XP per focused minute (e.g. 150 XP for 25m, 300 XP for 50m)
+            history.push({
+              timestamp: Date.now(),
+              duration: cfg.work,
+              mode: mode,
+              focusScore: Math.floor(88 + Math.random() * 10),
+              xp: xpEarned
+            });
+            localStorage.setItem("lumiu-focus-history", JSON.stringify(history));
+
+            // Sync with central XP
+            const currentXp = parseInt(localStorage.getItem("lumiu-xp") || "340");
+            localStorage.setItem("lumiu-xp", (currentXp + xpEarned).toString());
+
+            return nextMins;
+          });
           const msg = BREAK_MSGS[Math.floor(Math.random() * BREAK_MSGS.length)];
           setMsgIdx(BREAK_MSGS.indexOf(msg));
           return cfg.break * 60;

@@ -1,8 +1,33 @@
 import type { NextConfig } from "next";
+import withPWAInit from "@ducanh2912/next-pwa";
 
-const withPWA = require("next-pwa");
+const withPWA = withPWAInit({
+  dest: "public",
+  register: true,
+  disable: false, // Force enable for testing Offline Sync in both Dev and Prod
+  workboxOptions: {
+    skipWaiting: true,
+    runtimeCaching: [
+      {
+        urlPattern: /^https?.*/,
+        handler: 'NetworkFirst',
+        options: {
+          cacheName: 'lumiu-offline-sync',
+          expiration: {
+            maxEntries: 200,
+            maxAgeSeconds: 24 * 60 * 60 * 30, // 30 Days
+          },
+          cacheableResponse: {
+            statuses: [0, 200]
+          },
+        }
+      }
+    ]
+  }
+});
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: ['192.168.0.167', 'localhost', '127.0.0.1', '10.128.47.1'],
   turbopack: {},
   compress: true,
   reactStrictMode: true,
@@ -44,25 +69,4 @@ const nextConfig: NextConfig = {
   }
 };
 
-export default withPWA({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: false, // Force enable for testing Offline Sync in both Dev and Prod
-  runtimeCaching: [
-    {
-      urlPattern: /^https?.*/,
-      handler: 'NetworkFirst',
-      options: {
-        cacheName: 'lumiu-offline-sync',
-        expiration: {
-          maxEntries: 200,
-          maxAgeSeconds: 24 * 60 * 60 * 30, // 30 Days
-        },
-        cacheableResponse: {
-          statuses: [0, 200]
-        },
-      }
-    }
-  ]
-})(nextConfig);
+export default withPWA(nextConfig);

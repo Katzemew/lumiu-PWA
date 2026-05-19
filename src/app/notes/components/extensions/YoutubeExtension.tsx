@@ -16,10 +16,14 @@ const YoutubeComponent = (props: any) => {
 
   const getEmbedUrl = (url: string) => {
     if (!url) return '';
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-    const match = url.match(regExp);
-    const id = (match && match[2].length === 11) ? match[2] : null;
-    return id ? `https://www.youtube-nocookie.com/embed/${id}` : url;
+    const trimmed = url.trim();
+    const regExp = /(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/;
+    const match = trimmed.match(regExp);
+    const id = match ? match[1] : null;
+    const origin = typeof window !== 'undefined' ? encodeURIComponent(window.location.origin) : '';
+    return id
+      ? `https://www.youtube.com/embed/${id}?rel=0&modestbranding=1&playsinline=1${origin ? `&origin=${origin}` : ''}`
+      : url;
   };
 
   const onMouseDown = (e: React.MouseEvent) => {
@@ -73,10 +77,11 @@ const YoutubeComponent = (props: any) => {
         <div className="flex-video-wrapper">
           <iframe
             src={getEmbedUrl(node.attrs.src)}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
             allowFullScreen
             title="YouTube video player"
             loading="lazy"
+            referrerPolicy="no-referrer-when-downgrade"
           />
         </div>
 
