@@ -27,7 +27,7 @@ const withPWA = withPWAInit({
 });
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ['192.168.0.167', 'localhost', '127.0.0.1'],
+  allowedDevOrigins: ['192.168.0.167', 'localhost', '127.0.0.1', '10.128.47.1'],
   turbopack: {},
   compress: true,
   reactStrictMode: true,
